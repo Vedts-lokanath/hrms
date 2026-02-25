@@ -1,9 +1,12 @@
 package com.vts.hrms.controller;
 
 
+import com.vts.hrms.auth.AuthenticationController;
 import com.vts.hrms.dto.*;
 import com.vts.hrms.service.AdminService;
 import com.vts.hrms.util.ApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +17,8 @@ import java.util.Map;
 @RestController
 @RequestMapping(value = "/api/admin")
 public class AdminController {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AdminController.class);
 
     private final AdminService adminService;
 
@@ -123,6 +128,18 @@ public class AdminController {
         } catch (Exception e) {
             e.printStackTrace();
             return result;
+        }
+    }
+
+    @GetMapping(value="/user-login-access")
+    public ResponseEntity<Boolean> checkAccess(@RequestHeader String username) {
+        LOG.info(" REST request to check access: {}", username);
+        try {
+            boolean hasAccess = adminService.hasAccess(username);
+            return ResponseEntity.ok(hasAccess);
+        } catch (Exception e) {
+            LOG.error("Error while fetching user access {}", e.getMessage(), e);
+            return ResponseEntity.ok(false);
         }
     }
 

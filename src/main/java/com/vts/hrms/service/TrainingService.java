@@ -1,19 +1,13 @@
 package com.vts.hrms.service;
 
 import com.vts.hrms.dto.*;
-import com.vts.hrms.entity.Organizer;
+import com.vts.hrms.entity.*;
 import com.vts.hrms.entity.Calendar;
 import com.vts.hrms.entity.Program;
 import com.vts.hrms.entity.Requisition;
 import com.vts.hrms.exception.NotFoundException;
-import com.vts.hrms.mapper.AgencyMapper;
-import com.vts.hrms.mapper.CalendarMapper;
-import com.vts.hrms.mapper.ProgramMapper;
-import com.vts.hrms.mapper.RequisitionMapper;
-import com.vts.hrms.repository.OrganizerRepository;
-import com.vts.hrms.repository.CalenderRepository;
-import com.vts.hrms.repository.ProgramRepository;
-import com.vts.hrms.repository.RequisitionRepository;
+import com.vts.hrms.mapper.*;
+import com.vts.hrms.repository.*;
 import com.vts.hrms.util.FileStorageUtil;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -28,10 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -56,8 +47,10 @@ public class TrainingService {
     private final ProgramRepository programRepository;
     private final RequisitionMapper requisitionMapper;
     private final RequisitionRepository requisitionRepository;
+    private final FeedbackMapper feedbackMapper;
+    private final FeedbackRepository feedbackRepository;
 
-    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, AgencyMapper agencyMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, ProgramMapper programMapper, ProgramRepository programRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository) {
+    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, AgencyMapper agencyMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, ProgramMapper programMapper, ProgramRepository programRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository, FeedbackMapper feedbackMapper,FeedbackRepository feedbackRepository) {
         this.masterClient = masterClient;
         this.organizerRepository = organizerRepository;
         this.agencyMapper = agencyMapper;
@@ -67,6 +60,8 @@ public class TrainingService {
         this.programRepository = programRepository;
         this.requisitionMapper = requisitionMapper;
         this.requisitionRepository = requisitionRepository;
+        this.feedbackMapper = feedbackMapper;
+        this.feedbackRepository = feedbackRepository;
     }
 
     @Transactional(readOnly = true)
@@ -320,4 +315,80 @@ public class TrainingService {
         }
     }
 
+
+    public FeedbackDTO requisitionFeedback(@Valid FeedbackDTO dto, String username) {
+        log.info("Request to requisition feedback requisitionId {} by {}", dto.getRequisitionId(),username);
+        Feedback feedback = feedbackMapper.toEntity(dto);
+        feedback.setCreatedBy(username);
+        feedback.setCreatedDate(LocalDateTime.now());
+        feedback.setIsActive(1);
+        feedback = feedbackRepository.save(feedback);
+
+
+        FeedbackDTO feedbackDTO = feedbackMapper.toDto(feedback);
+
+        return feedbackDTO;
+    }
+
+    public List<FeedbackDTO> getFeedbackList(String username) {
+        log.info("Feedback list fetched by {}", username);
+        List<Feedback> feedbackList = feedbackRepository.findByIsActive(1);
+
+        if (feedbackList == null || feedbackList.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<FeedbackDTO> feedbbackdto = feedbackMapper.toDto(feedbackList);
+
+        if (feedbbackdto == null || feedbbackdto.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<EmployeeDTO> employeeList = masterClient.getEmployeeList(xApiKey);
+
+        Map<Long, EmployeeDTO> employeeMap = employeeList != null
+                ? employeeList.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp))
+                : Collections.emptyMap();
+
+        feedbbackdto.forEach(d -> {
+
+            if (d == null) return;
+
+            EmployeeDTO employeeDTO = employeeMap.get(d.getParticipantId());
+
+            if (employeeDTO != null) {
+
+                String title = employeeDTO.getTitle() != null ? employeeDTO.getTitle() : "";
+                String empName = employeeDTO.getEmpName() != null ? employeeDTO.getEmpName() : "";
+                String designation = employeeDTO.getEmpDesigName() != null ? employeeDTO.getEmpDesigName() : "";
+
+                String participantName =
+                        (title.isEmpty() ? "" : title + " ")
+                                + empName
+                                + (designation.isEmpty() ? "" : ", " + designation);
+
+                d.setParticipantName(participantName.trim());
+                d.setDivisionName(employeeDTO.getEmpDivCode());
+            }
+
+            RequisitionDTO requisitionDto = null;
+
+            if (d.getRequisitionId() != null) {
+                requisitionDto = getRequisitionById(d.getRequisitionId(), username);
+            }
+
+            if (requisitionDto != null) {
+                d.setProgramName(requisitionDto.getProgramName());
+                d.setOrganizer(requisitionDto.getOrganizer());
+                d.setFromDate(requisitionDto.getFromDate());
+                d.setToDate(requisitionDto.getToDate());
+                d.setProgramDuration(requisitionDto.getDuration());
+            }
+
+        });
+
+        return feedbbackdto;
+    }
 }

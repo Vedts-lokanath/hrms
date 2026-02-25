@@ -42,5 +42,8 @@ public interface LoginRepository extends JpaRepository<Login, Long> {
     LoginEmployeeDto findByUserName(@Param("username") String username);
 
     Login findByUsernameAndIsActive(String username, int isActive);
+
+    boolean existsByUsernameAndIsActive(String username, int isActive);
+
 }
 
