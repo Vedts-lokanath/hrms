@@ -1,0 +1,36 @@
+<configuration>
+    <property name="LOG_DIR" value="log" />
+    <property name="LOG_FILE" value="hrms-log" />
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name"/>
+
+
+    <import class="ch.qos.logback.core.ConsoleAppender"/>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp />
+                <loggerName />
+                <logLevel />
+                <message />
+            </providers>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- <file>${LOG_DIR}/initial-log.log</file>-->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/${LOG_FILE}.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <findAndRegisterJacksonModules>false</findAndRegisterJacksonModules>
+        </encoder>
+    </appender>
+
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </root>
+</configuration>

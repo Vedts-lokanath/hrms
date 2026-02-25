@@ -44,6 +44,8 @@ public class EmployeeDTO implements Serializable {
     private String roleName;
     private String maritalStatus;
     private String gender;
+    private String email;
+    private String mobileNo;
 
     public EmployeeDTO(String title, Long empId, String empNo, String employeeType, String empName, Long designationId, Long divisionId, String empStatus) {
         this.title = title;

@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
@@ -25,8 +26,6 @@ public class RequisitionDTO implements Serializable {
     @NotNull(message = "Initiating Officer is required")
     private Long initiatingOfficer;
 
-    private String reference;
-
     @NotNull(message = "From date is required")
     private LocalDate fromDate;
 
@@ -39,10 +38,13 @@ public class RequisitionDTO implements Serializable {
     @NotBlank(message = "Mode of payment is required")
     private String modeOfPayment;
 
-    private String necessity;
-
     @NotBlank(message = "Course submission is required")
     private String isSubmitted;
+
+    private String reference;
+    private String venue;
+    private String necessity;
+    private BigDecimal registrationFee;
 
     private String status;
     private String fileEcs;
@@ -53,7 +55,17 @@ public class RequisitionDTO implements Serializable {
     private String programName;
     private Long organizerId;
     private String organizer;
+    private String organizerContactName;
+    private String organizerPhoneNo;
+    private String organizerFaxNo;
+    private String organizerEmail;
+
     private String initiatingOfficerName;
+    private String empNo;
+    private String empDesigName;
+    private String empDivCode;
+    private String email;
+    private String mobileNo;
 
     private MultipartFile multipartFileEcs;
     private MultipartFile multipartFileCheque;

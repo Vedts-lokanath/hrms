@@ -1,17 +1,17 @@
 package com.vts.hrms.controller;
 
-import com.vts.hrms.dto.DesignationDTO;
-import com.vts.hrms.dto.DivisionDTO;
-import com.vts.hrms.dto.EmployeeDTO;
-import com.vts.hrms.dto.LoginEmployeeDto;
+import com.vts.hrms.dto.*;
 import com.vts.hrms.service.MasterService;
 import com.vts.hrms.util.ApiResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -82,6 +82,40 @@ public class MasterController {
 
         return ResponseEntity.ok(
                 new ApiResponse(true, "Employee list fetched successfully", list)
+        );
+    }
+
+    @GetMapping(value = "/sign-auth-roles")
+    public ResponseEntity<ApiResponse> getSignAuthRoles(@RequestHeader String username) {
+        List<SignAuthRoleDTO> list = masterService.getSignAuthRoles(username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Sign Auth Role list fetched", list)
+        );
+    }
+
+    @GetMapping(value = "/sign-authority")
+    public ResponseEntity<ApiResponse> getSignAuthorities(@RequestHeader String username) {
+        List<SignRoleAuthorityDTO> list = masterService.getSignAuthorities(username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Sign Role Authority list fetched", list)
+        );
+    }
+
+    @PostMapping(value = "/add-sign-authority")
+    public ResponseEntity<ApiResponse> addProgramData(@RequestBody SignRoleAuthorityDTO dto, @RequestHeader String username) {
+        SignRoleAuthorityDTO data = masterService.addSignRoleAuthority(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Sign Role Authority added successfully", data)
+        );
+    }
+
+    @PutMapping(value = "/update-sign-authority")
+    public ResponseEntity<ApiResponse> updateProgramData(@RequestBody SignRoleAuthorityDTO dto, @RequestHeader String username) {
+        Optional<SignRoleAuthorityDTO> data = masterService.updateSignRoleAuthority(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Sign Role Authority updated successfully", data)
         );
     }
 

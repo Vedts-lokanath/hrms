@@ -8,6 +8,7 @@ import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -33,6 +34,12 @@ public class Program implements Serializable {
 
     @Column(name = "to_date")
     private LocalDate toDate;
+
+    @Column(name = "registration_fee")
+    private BigDecimal registrationFee;
+
+    @Column(name = "venue")
+    private String venue;
 
     @Size(max = 100)
     @Column(name = "created_by", length = 100)
