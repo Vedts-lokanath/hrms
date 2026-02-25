@@ -1,13 +1,12 @@
 package com.vts.hrms.service;
 
+import com.vts.hrms.auth.AuthenticationRequest;
 import com.vts.hrms.dto.DesignationDTO;
 import com.vts.hrms.dto.DivisionDTO;
 import com.vts.hrms.dto.EmployeeDTO;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -28,5 +27,6 @@ public interface MasterClientService {
     @GetMapping("/getEmployee")
     List<EmployeeDTO> getEmployee(@RequestHeader("X-API-KEY") String apiKey, @RequestParam("empId") long empId);
 
-
+    @RequestMapping(value = "/getAuthenticate", method = RequestMethod.POST)
+    ResponseEntity<String> getAuthenticate(@RequestBody AuthenticationRequest authenticationRequest);
 }

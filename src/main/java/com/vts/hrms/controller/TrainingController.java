@@ -1,9 +1,6 @@
 package com.vts.hrms.controller;
 
-import com.vts.hrms.dto.OrganizerIdDTO;
-import com.vts.hrms.dto.CalendarDTO;
-import com.vts.hrms.dto.ProgramDTO;
-import com.vts.hrms.dto.RequisitionDTO;
+import com.vts.hrms.dto.*;
 import com.vts.hrms.exception.NotFoundException;
 import com.vts.hrms.service.TrainingService;
 import com.vts.hrms.util.ApiResponse;
@@ -174,6 +171,22 @@ public class TrainingController {
         Optional<RequisitionDTO> data = trainingService.updateRequisitionData(dto,username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Requisition data updated successfully", data)
+        );
+    }
+
+    @PostMapping(value = "/requisition-feedback")
+    public ResponseEntity<ApiResponse> requisitionFeedback(@Valid @RequestBody FeedbackDTO dto, @RequestHeader String username) throws IOException {
+        FeedbackDTO data = trainingService.requisitionFeedback(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Feedback submitted successfully", data)
+        );
+    }
+
+    @GetMapping(value = "/feedback-list")
+    public ResponseEntity<ApiResponse> getFeedbackList(@RequestHeader String username) {
+        List<FeedbackDTO> list = trainingService.getFeedbackList(username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Feedback list fetched successfully", list)
         );
     }
 

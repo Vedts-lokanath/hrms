@@ -353,4 +353,12 @@ public class AdminService {
         return new UserResponseDTO(login.getLoginId(), roleSecurity.getRoleId(), login.getEmpId(), 0L, login.getUsername(),
                 employeeDTO.get(0).getEmpName(), employeeDTO.get(0).getEmpDesigName(), roleSecurity.getRoleName(), "");
     }
+
+    public boolean hasAccess(String username) {
+        try {
+            return loginRepository.existsByUsernameAndIsActive(username, 1);
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }
