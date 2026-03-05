@@ -54,8 +54,10 @@ public class TrainingService {
     private final StatusRepository statusRepository;
     private final NotificationRepository notificationRepository;
     private final SignRoleAuthorityRepository signRoleAuthorityRepository;
+    private final RequisitionSequenceRepository sequenceRepository;
+    private final EvaluationRepository evaluationRepository;
 
-    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, AgencyMapper agencyMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, ProgramMapper programMapper, ProgramRepository programRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository, FeedbackMapper feedbackMapper, FeedbackRepository feedbackRepository, RequisitionTransactionRepository transactionRepository, StatusRepository statusRepository, NotificationRepository notificationRepository, SignRoleAuthorityRepository signRoleAuthorityRepository) {
+    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, AgencyMapper agencyMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, ProgramMapper programMapper, ProgramRepository programRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository, FeedbackMapper feedbackMapper, FeedbackRepository feedbackRepository, RequisitionTransactionRepository transactionRepository, StatusRepository statusRepository, NotificationRepository notificationRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, RequisitionSequenceRepository sequenceRepository, EvaluationRepository evaluationRepository) {
         this.masterClient = masterClient;
         this.organizerRepository = organizerRepository;
         this.agencyMapper = agencyMapper;
@@ -71,6 +73,8 @@ public class TrainingService {
         this.statusRepository = statusRepository;
         this.notificationRepository = notificationRepository;
         this.signRoleAuthorityRepository = signRoleAuthorityRepository;
+        this.sequenceRepository = sequenceRepository;
+        this.evaluationRepository = evaluationRepository;
     }
 
     @Transactional(readOnly = true)
@@ -173,7 +177,31 @@ public class TrainingService {
         requisition.setCreatedDate(LocalDateTime.now());
         requisition.setIsActive(1);
 
-        Path fullpath = Paths.get(appStorage, "Requisition");
+        LocalDate fromDate = requisition.getFromDate();
+
+        if (fromDate == null) {
+            throw new IllegalArgumentException("From Date is required");
+        }
+
+        String fy = getFinancialYear(fromDate);
+
+        RequisitionSequence sequence =
+                sequenceRepository.findByFinancialYearForUpdate(fy)
+                        .orElseGet(() -> {
+                            RequisitionSequence newSeq = new RequisitionSequence();
+                            newSeq.setFinancialYear(fy);
+                            newSeq.setLastNumber(0L);
+                            return newSeq;
+                        });
+
+        Long nextNumber = sequence.getLastNumber() + 1;
+        sequence.setLastNumber(nextNumber);
+        sequenceRepository.save(sequence);
+
+        String requisitionNumber = "REQ/" + fy + "/" + String.format("%03d", nextNumber);
+        requisition.setRequisitionNumber(requisitionNumber);
+
+        Path fullpath = Paths.get(appStorage, "Requisition", requisitionNumber.replace("/", "_"));
         if (dto.getMultipartFileEcs() != null && !dto.getMultipartFileEcs().isEmpty()) {
             requisition.setFileEcs(dto.getMultipartFileEcs().getOriginalFilename());
             FileStorageUtil.saveFile(fullpath, dto.getMultipartFileEcs().getOriginalFilename(), dto.getMultipartFileEcs());
@@ -192,6 +220,7 @@ public class TrainingService {
         }
 
         requisition = requisitionRepository.save(requisition);
+        insertTransaction(requisition.getRequisitionId(), requisition.getInitiatingOfficer(), requisition.getInitiatingOfficer(), username, "AA");
         return requisitionMapper.toDto(requisition);
     }
 
@@ -471,7 +500,7 @@ public class TrainingService {
 
         EmployeeDTO employeeDTO = employeeMap.get(requisition.getInitiatingOfficer());
 
-        String message = getNotificationMsg(employeeDTO);
+        String message = getNotificationMsg(requisition.getRequisitionNumber(), employeeDTO);
 
         DivisionDTO divisionDTO = Optional.of(employeeDTO)
                 .map(EmployeeDTO::getDivisionId)
@@ -516,7 +545,7 @@ public class TrainingService {
 
             EmployeeDTO employeeDTO = employeeMap.get(dto.getActionBy());
 
-            String message = getNotificationMsg(employeeDTO);
+            String message = getNotificationMsg(requisition.getRequisitionNumber(), employeeDTO);
             insertTransaction(dto.getRequisitionId(), dto.getActionBy(), authorityDTO.getEmpId(), username, "AR");
             insertNotification(dto.getActionBy(), authorityDTO.getEmpId(), "req-approval", message, username);
         }
@@ -525,13 +554,13 @@ public class TrainingService {
         return requisitionMapper.toDto(requisition);
     }
 
-    private static String getNotificationMsg(EmployeeDTO employeeDTO) {
+    private static String getNotificationMsg(String requisitionNumber, EmployeeDTO employeeDTO) {
         String prefix = employeeDTO.getTitle() != null && !employeeDTO.getTitle().trim().isEmpty()
                 ? employeeDTO.getTitle()
                 : (employeeDTO.getSalutation() != null ? employeeDTO.getSalutation() : "");
 
         return String.format(
-                "Requisition forwarded by %s%s%s",
+                "Requisition no " + requisitionNumber + " forwarded by %s%s%s",
                 prefix.isEmpty() ? "" : prefix + " ",
                 employeeDTO.getEmpName() != null ? employeeDTO.getEmpName() : "",
                 employeeDTO.getEmpDesigName() != null ? ", " + employeeDTO.getEmpDesigName() : ""
@@ -823,6 +852,101 @@ public class TrainingService {
             dto.setRemarks(data.getRemarks());
             return dto;
         }).toList();
+    }
+
+    public static String getFinancialYear(LocalDate date) {
+
+        int year = (date.getMonthValue() >= 4)
+                ? date.getYear()
+                : date.getYear() - 1;
+
+        return year + "-" + (year + 1);
+    }
+
+    @Transactional
+    public EvaluationRequestDTO addEvaluation(EvaluationRequestDTO dto, String username) {
+        log.info("Request to add evaluation for empId {} by {} ", dto.getInitiator(), username);
+
+        if (dto.getInitiator() == null) {
+            throw new NotFoundException("Initiator can not be null");
+        }
+        Long initiatorId = dto.getInitiator();
+        List<Evaluation> evaluations = dto.getEvaluation()
+                .stream()
+                .filter(e -> e.getRequisitionId() != null && e.getImpact() != null)
+                .map(e -> {
+                    Evaluation evaluation = new Evaluation();
+                    evaluation.setRequisitionId(e.getRequisitionId());
+                    evaluation.setTraineeId(initiatorId);
+                    evaluation.setImpact(e.getImpact());
+                    evaluation.setCreatedBy(username);
+                    evaluation.setCreatedDate(LocalDateTime.now());
+                    evaluation.setIsActive(1);
+                    return evaluation;
+                })
+                .toList();
+
+        evaluationRepository.saveAll(evaluations);
+
+        return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public List<EvaluationRequestDTO> getEvaluationList(String username) {
+        log.info("Request to fetch evaluation list by {}", username);
+
+        List<EvaluationDTO> list = evaluationRepository.findEvaluationData();
+        List<EmployeeDTO> allActiveEmployees =
+                masterClient.getEmployeeMasterList(xApiKey);
+
+        Map<Long, EmployeeDTO> employeeMap = allActiveEmployees.stream()
+                .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
+
+        return list.stream()
+                .collect(Collectors.groupingBy(EvaluationDTO::getTraineeId))
+                .entrySet()
+                .stream()
+                .map(entry -> {
+
+                    Long traineeId = entry.getKey();
+                    EmployeeDTO emp = employeeMap.get(traineeId);
+
+                    if (emp == null) return null;
+
+                    return new EvaluationRequestDTO(
+                            traineeId,
+                            emp.getEmpName(),
+                            emp.getEmpDesigName(),
+                            emp.getTitle()!=null ? emp.getTitle() :
+                                    (emp.getSalutation()!=null ? emp.getSalutation() : ""),
+                            entry.getValue()
+                    );
+                })
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(EvaluationRequestDTO::getEmpName))
+                .toList();
+    }
+
+    public EvaluationRequestDTO getEvaluationPrint(Long id, String username) {
+        log.info("Request to fetch Evaluation print data for id {} by {}", id, username);
+        if (id == null) {
+            throw new NotFoundException("Employee id cannot be null");
+        }
+
+        List<EvaluationDTO> evaluation = evaluationRepository.findByEmployee(id);
+
+        List<EmployeeDTO> employeeDTOList = masterClient.getEmployee(xApiKey,id);
+        EmployeeDTO employeeDTO = employeeDTOList.get(0);
+
+        EvaluationRequestDTO requestDTO = new EvaluationRequestDTO();
+        requestDTO.setInitiator(id);
+        requestDTO.setTitle(employeeDTO.getTitle()!=null ? employeeDTO.getTitle() :
+                (employeeDTO.getSalutation()!=null ? employeeDTO.getSalutation() : ""));
+        requestDTO.setDesignation(employeeDTO.getEmpDesigName()!=null ? employeeDTO.getEmpDesigName() : "");
+        requestDTO.setEmpName(employeeDTO.getEmpName()!=null ? employeeDTO.getEmpName() : "");
+        requestDTO.setEvaluation(evaluation);
+
+        return requestDTO;
     }
 
     private void insertTransaction(Long id, Long actionBy, Long actionTo, String username, String status) {

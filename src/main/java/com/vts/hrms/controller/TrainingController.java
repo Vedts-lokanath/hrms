@@ -164,7 +164,8 @@ public class TrainingController {
     public ResponseEntity<Resource> downloadRequisitionFile(@PathVariable Long id, @PathVariable String file, @RequestHeader String username) {
         try {
 
-            Path filePath = Paths.get(appStorage, "Requisition", file);
+            RequisitionDTO requisitionDTO = trainingService.getRequisitionById(id, username);
+            Path filePath = Paths.get(appStorage, "Requisition", requisitionDTO.getRequisitionNumber().replace("/","_"), file);
 
             if (!Files.exists(filePath)) {
                 return ResponseEntity.notFound().build();
@@ -253,6 +254,31 @@ public class TrainingController {
         List<RequisitionTransactionDTO> list = trainingService.getRequisitionTransaction(reqId,username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Requisition transaction fetched successfully", list)
+        );
+    }
+
+    @PostMapping(value = "/add-evaluation")
+    public ResponseEntity<ApiResponse> addEvaluation(@RequestBody EvaluationRequestDTO dto, @RequestHeader String username) {
+        EvaluationRequestDTO data = trainingService.addEvaluation(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Evaluation added successfully", data)
+        );
+    }
+
+    @GetMapping(value = "/evaluation")
+    public ResponseEntity<ApiResponse> getEvaluationList(@RequestHeader String username) {
+        List<EvaluationRequestDTO> list = trainingService.getEvaluationList(username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Evaluation list fetched", list)
+        );
+    }
+
+    @GetMapping(value = "/evaluation-print/{id}")
+    public ResponseEntity<ApiResponse> getEvaluationPrint(@PathVariable Long id, @RequestHeader String username) {
+        EvaluationRequestDTO data = trainingService.getEvaluationPrint(id,username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Evaluation print data fetched", data)
         );
     }
 

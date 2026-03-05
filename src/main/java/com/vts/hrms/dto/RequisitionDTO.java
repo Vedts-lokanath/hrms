@@ -24,6 +24,8 @@ public class RequisitionDTO implements Serializable {
     @NotNull(message = "Program is required")
     private Long programId;
 
+    private String requisitionNumber;
+
     @NotNull(message = "Initiating Officer is required")
     private Long initiatingOfficer;
 

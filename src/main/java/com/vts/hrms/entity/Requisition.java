@@ -22,6 +22,9 @@ public class Requisition implements Serializable {
     @Column(name = "requisition_id", nullable = false)
     private Long requisitionId;
 
+    @Column(name = "requisition_number", nullable = false, unique = true)
+    private String requisitionNumber;
+
     @NotNull
     @Column(name = "program_id", nullable = false)
     private Long programId;
