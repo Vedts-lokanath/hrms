@@ -8,10 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -20,7 +17,7 @@ public class MasterController {
 
     private final MasterService masterService;
 
-    public MasterController( MasterService masterService) {
+    public MasterController(MasterService masterService) {
         this.masterService = masterService;
     }
 
@@ -74,6 +71,19 @@ public class MasterController {
                     .sorted(Comparator.comparing(EmployeeDTO::getSrNo))
                     .collect(Collectors.toList());
 
+        } else if ("ROLE_DH".equalsIgnoreCase(roleName)) {
+
+            List<DivisionDTO> divisionDTOS = masterService.getDivisionMaster();
+
+            Set<Long> divisionIds = divisionDTOS.stream()
+                    .filter(e->e.getDivisionHeadId().equals(empId))
+                    .map(DivisionDTO::getDivisionId).collect(Collectors.toSet());
+
+            // DH → Filter only their division employee
+            list = employeeList.stream()
+                    .filter(emp -> divisionIds.contains(emp.getDivisionId()))
+                    .sorted(Comparator.comparing(EmployeeDTO::getSrNo))
+                    .toList();
         } else {
 
             // Optional: default case
@@ -105,7 +115,7 @@ public class MasterController {
 
     @PostMapping(value = "/add-sign-authority")
     public ResponseEntity<ApiResponse> addProgramData(@RequestBody SignRoleAuthorityDTO dto, @RequestHeader String username) {
-        SignRoleAuthorityDTO data = masterService.addSignRoleAuthority(dto,username);
+        SignRoleAuthorityDTO data = masterService.addSignRoleAuthority(dto, username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Sign Role Authority added successfully", data)
         );
@@ -113,7 +123,7 @@ public class MasterController {
 
     @PutMapping(value = "/update-sign-authority")
     public ResponseEntity<ApiResponse> updateProgramData(@RequestBody SignRoleAuthorityDTO dto, @RequestHeader String username) {
-        Optional<SignRoleAuthorityDTO> data = masterService.updateSignRoleAuthority(dto,username);
+        Optional<SignRoleAuthorityDTO> data = masterService.updateSignRoleAuthority(dto, username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Sign Role Authority updated successfully", data)
         );

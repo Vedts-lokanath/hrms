@@ -229,7 +229,7 @@ public class TrainingService {
         log.info("Requisition list fetched by {}", username);
         List<Organizer> organizerList = organizerRepository.findAllByIsActive(1);
         List<Program> programList = programRepository.findAllByIsActive(1);
-        List<Requisition> list = requisitionRepository.findAllByIsActive(1);
+        List<Requisition> list = requisitionRepository.findAllByIsActiveOrderByRequisitionIdDesc(1);
         List<Status> statusList = statusRepository.findAll();
 
         List<EmployeeDTO> employeeList = masterClient.getEmployeeMasterList(xApiKey);
@@ -871,33 +871,26 @@ public class TrainingService {
             throw new NotFoundException("Initiator can not be null");
         }
         Long initiatorId = dto.getInitiator();
-        List<Evaluation> evaluations = dto.getEvaluation()
-                .stream()
-                .filter(e -> e.getRequisitionId() != null && e.getImpact() != null)
-                .map(e -> {
-                    Evaluation evaluation = new Evaluation();
-                    evaluation.setRequisitionId(e.getRequisitionId());
-                    evaluation.setTraineeId(initiatorId);
-                    evaluation.setImpact(e.getImpact());
-                    evaluation.setCreatedBy(username);
-                    evaluation.setCreatedDate(LocalDateTime.now());
-                    evaluation.setIsActive(1);
-                    return evaluation;
-                })
-                .toList();
+        EvaluationDTO evaluationDTO = dto.getEvaluationData();
+        Evaluation evaluation = new Evaluation();
+        evaluation.setRequisitionId(evaluationDTO.getRequisitionId());
+        evaluation.setTraineeId(initiatorId);
+        evaluation.setImpact(evaluationDTO.getImpact());
+        evaluation.setCreatedBy(username);
+        evaluation.setCreatedDate(LocalDateTime.now());
+        evaluation.setIsActive(1);
 
-        evaluationRepository.saveAll(evaluations);
+        evaluationRepository.save(evaluation);
 
         return dto;
     }
 
     @Transactional(readOnly = true)
-    public List<EvaluationRequestDTO> getEvaluationList(String username) {
+    public List<EvaluationRequestDTO> getEvaluationList(LocalDate fromDate, LocalDate toDate, String username) {
         log.info("Request to fetch evaluation list by {}", username);
 
-        List<EvaluationDTO> list = evaluationRepository.findEvaluationData();
-        List<EmployeeDTO> allActiveEmployees =
-                masterClient.getEmployeeMasterList(xApiKey);
+        List<EvaluationDTO> list = evaluationRepository.findEvaluationData(fromDate, toDate);
+        List<EmployeeDTO> allActiveEmployees = masterClient.getEmployeeMasterList(xApiKey);
 
         Map<Long, EmployeeDTO> employeeMap = allActiveEmployees.stream()
                 .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
@@ -919,7 +912,8 @@ public class TrainingService {
                             emp.getEmpDesigName(),
                             emp.getTitle()!=null ? emp.getTitle() :
                                     (emp.getSalutation()!=null ? emp.getSalutation() : ""),
-                            entry.getValue()
+                            entry.getValue(),
+                            null
                     );
                 })
                 .filter(Objects::nonNull)

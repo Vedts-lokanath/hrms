@@ -31,4 +31,5 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Long> 
             @Param("statusCodes") List<String> statusCodes
     );
 
+    List<Requisition> findAllByIsActiveOrderByRequisitionIdDesc(int isActive);
 }

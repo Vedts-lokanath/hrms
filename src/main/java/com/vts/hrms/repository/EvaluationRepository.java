@@ -6,8 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
 
@@ -27,8 +27,10 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
                 LEFT JOIN Requisition r ON r.requisitionId = e.requisitionId
                 LEFT JOIN Program p ON p.programId = r.programId
                 WHERE e.isActive = 1
+                AND r.fromDate >= :fromDate AND r.toDate <= :toDate
+                ORDER BY r.fromDate DESC
             """)
-    List<EvaluationDTO> findEvaluationData();
+    List<EvaluationDTO> findEvaluationData(@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
     @Query("""
                 SELECT new com.vts.hrms.dto.EvaluationDTO(

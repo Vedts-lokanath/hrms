@@ -17,4 +17,5 @@ public class EvaluationRequestDTO implements Serializable {
     private String designation;
     private String title;
     private List<EvaluationDTO> evaluation;
+    private EvaluationDTO evaluationData;
 }

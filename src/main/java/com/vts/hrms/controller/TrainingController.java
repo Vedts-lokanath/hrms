@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -266,8 +267,8 @@ public class TrainingController {
     }
 
     @GetMapping(value = "/evaluation")
-    public ResponseEntity<ApiResponse> getEvaluationList(@RequestHeader String username) {
-        List<EvaluationRequestDTO> list = trainingService.getEvaluationList(username);
+    public ResponseEntity<ApiResponse> getEvaluationList(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate, @RequestHeader String username) {
+        List<EvaluationRequestDTO> list = trainingService.getEvaluationList(fromDate, toDate, username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Evaluation list fetched", list)
         );
