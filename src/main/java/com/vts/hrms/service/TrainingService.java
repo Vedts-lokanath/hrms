@@ -334,7 +334,8 @@ public class TrainingService {
             dto.setStatusColor(status.getColorCode());
             dto.setStatusName(status.getStatusName());
 
-            dto.setRegistrationFee(course.getRegistrationFee());
+            dto.setOfflineRegistrationFee(course.getOfflineRegistrationFee());
+            dto.setOnlineRegistrationFee(course.getOnlineRegistrationFee());
             if (organizer != null) {
                 dto.setOrganizer(organizer.getOrganizer());
                 dto.setOrganizerContactName(organizer.getContactName());
@@ -379,7 +380,8 @@ public class TrainingService {
         requisitionDTO.setOrganizerId(org.getOrganizerId());
         requisitionDTO.setCourseName(course.getCourseName());
         requisitionDTO.setVenue(course.getVenue());
-        requisitionDTO.setRegistrationFee(course.getRegistrationFee());
+        requisitionDTO.setOfflineRegistrationFee(course.getOfflineRegistrationFee());
+        requisitionDTO.setOnlineRegistrationFee(course.getOnlineRegistrationFee());
         return requisitionDTO;
     }
 
@@ -580,6 +582,7 @@ public class TrainingService {
                 .map(organizerMapper::toDto);
     }
 
+    @CacheEvict(value = "notificationList", allEntries = true)
     @Transactional
     public RequisitionDTO forwardRequisition(@Valid RequisitionDTO dto, String username) {
         log.info("Request to froward requisition for id {} ", dto.getRequisitionId());
@@ -619,6 +622,7 @@ public class TrainingService {
         return requisitionMapper.toDto(requisition);
     }
 
+    @CacheEvict(value = "notificationList", allEntries = true)
     @Transactional
     public RequisitionDTO recommendRequisition(@Valid RequisitionDTO dto, String username) {
         log.info("Request to recommend requisition for id {} ", dto.getRequisitionId());
@@ -725,7 +729,8 @@ public class TrainingService {
         if (course != null) {
             dto.setCourseName(course.getCourseName());
             dto.setVenue(course.getVenue());
-            dto.setRegistrationFee(course.getRegistrationFee());
+            dto.setOfflineRegistrationFee(course.getOfflineRegistrationFee());
+            dto.setOnlineRegistrationFee(course.getOnlineRegistrationFee());
 
             Organizer organizer = organizerMap.get(course.getOrganizerId());
             if (organizer != null) {
@@ -887,7 +892,8 @@ public class TrainingService {
 
                 dto.setCourseName(course.getCourseName());
                 dto.setVenue(course.getVenue());
-                dto.setRegistrationFee(course.getRegistrationFee());
+                dto.setOfflineRegistrationFee(course.getOfflineRegistrationFee());
+                dto.setOnlineRegistrationFee(course.getOnlineRegistrationFee());
 
                 Organizer organizer = organizerMap.get(course.getOrganizerId());
                 if (organizer != null) {
@@ -1091,6 +1097,7 @@ public class TrainingService {
         return requisitionMapper.toDto(requisition);
     }
 
+    @CacheEvict(value = "notificationList", allEntries = true)
     @Transactional
     public RequisitionDTO returnRequisition(@Valid RequisitionDTO dto, String username) {
         log.info("Request to return requisition for id {} ", dto.getRequisitionId());
@@ -1246,7 +1253,7 @@ public class TrainingService {
         transactionRepository.save(transaction);
     }
 
-    @CacheEvict(value = "notificationList", allEntries = true)
+
     private void insertNotification(Long actionBy, Long actionTo, String url, String message, String username) {
         Notification notification = new Notification();
         notification.setNotificationBy(actionBy);
@@ -1260,46 +1267,4 @@ public class TrainingService {
         notificationRepository.save(notification);
     }
 
-    public List<HRMSCadreDTO> getTMDSDashboardData(String username) {
-
-        log.info("Request to fetch dashboard data from TMDS by {}", username);
-
-        List<EmployeeDTO> employeeList = masterClient.getEmployeeMasterList(xApiKey);
-        List<Requisition> requisitionList = requisitionRepository.findAllByIsActive(1);
-
-        // Step 1: Create Set of trained employee IDs (initiating officers)
-        Set<Long> trainedEmpIds = requisitionList.stream()
-                .map(Requisition::getInitiatingOfficer)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        // Step 2: Group employees by designationCadre
-        Map<String, List<EmployeeDTO>> cadreMap = employeeList.stream()
-                .filter(emp -> emp.getDesigCadre() != null)
-                .collect(Collectors.groupingBy(EmployeeDTO::getDesigCadre));
-
-        // Step 3: Prepare dashboard data
-        List<HRMSCadreDTO> dashboardList = new ArrayList<>();
-
-        for (Map.Entry<String, List<EmployeeDTO>> entry : cadreMap.entrySet()) {
-
-            String cadre = entry.getKey();
-            List<EmployeeDTO> employees = entry.getValue();
-
-            long trainedCount = employees.stream()
-                    .filter(emp -> trainedEmpIds.contains(emp.getEmpId()))
-                    .count();
-
-            long nonTrainedCount = employees.size() - trainedCount;
-
-            HRMSCadreDTO dto = new HRMSCadreDTO();
-            dto.setCategory(cadre);
-            dto.setTrainedCount(trainedCount);
-            dto.setNonTrainedCount(nonTrainedCount);
-
-            dashboardList.add(dto);
-        }
-
-        return dashboardList;
-    }
 }

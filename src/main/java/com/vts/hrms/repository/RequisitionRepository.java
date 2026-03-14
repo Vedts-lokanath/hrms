@@ -1,11 +1,13 @@
 package com.vts.hrms.repository;
 
+import com.vts.hrms.dto.RequisitionDashboardDTO;
 import com.vts.hrms.entity.Feedback;
 import com.vts.hrms.entity.Requisition;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface RequisitionRepository extends JpaRepository<Requisition, Long> {
@@ -38,4 +40,57 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Long> 
 
     List<Requisition> findAllByInitiatingOfficerInAndIsActiveOrderByRequisitionIdDesc(List<Long> empIds, int isActive);
 
+    @Query("""
+            SELECT new com.vts.hrms.dto.RequisitionDashboardDTO(
+            
+            c.organizerId,
+            o.organizer,
+            
+            COUNT(r.requisitionId),
+            
+            SUM(CASE WHEN r.status IN ('AA','REV','RR','RV') THEN 1 ELSE 0 END),
+            
+            SUM(CASE WHEN r.status='AF' THEN 1 ELSE 0 END),
+            
+            SUM(CASE WHEN r.status='AR' THEN 1 ELSE 0 END),
+            
+            SUM(CASE WHEN r.status='AV' THEN 1 ELSE 0 END)
+            
+            )
+            
+            FROM Requisition r
+            JOIN Course c ON r.courseId = c.courseId
+            JOIN Organizer o ON c.organizerId = o.organizerId
+            
+            GROUP BY c.organizerId,o.organizer
+            """)
+    List<RequisitionDashboardDTO> getOrganizerWiseRequisitionStats();
+
+    @Query("""
+            SELECT new com.vts.hrms.dto.RequisitionDashboardDTO(
+            
+            c.organizerId,
+            o.organizer,
+            
+            COUNT(r.requisitionId),
+            
+            SUM(CASE WHEN r.status IN ('AA','REV','RR','RV') THEN 1 ELSE 0 END),
+            
+            SUM(CASE WHEN r.status='AF' THEN 1 ELSE 0 END),
+            
+            SUM(CASE WHEN r.status='AR' THEN 1 ELSE 0 END),
+            
+            SUM(CASE WHEN r.status='AV' THEN 1 ELSE 0 END)
+            
+            )
+            
+            FROM Requisition r
+            JOIN Course c ON r.courseId = c.courseId
+            JOIN Organizer o ON c.organizerId = o.organizerId
+            WHERE r.isActive = 1
+            AND r.fromDate >= :startDate
+            AND r.toDate <= :endDate
+            GROUP BY c.organizerId,o.organizer
+            """)
+    List<RequisitionDashboardDTO> getRequisitionFilterDashboard(LocalDate startDate, LocalDate endDate);
 }

@@ -23,6 +23,9 @@ public class Course implements Serializable {
     @Column(name = "course_id")
     private Long courseId;
 
+    @Column(name = "course_code")
+    private String courseCode;
+
     @Column(name = "course_name")
     private String courseName;
 
@@ -38,8 +41,11 @@ public class Course implements Serializable {
     @Column(name = "to_date")
     private LocalDate toDate;
 
-    @Column(name = "registration_fee")
-    private BigDecimal registrationFee;
+    @Column(name = "offline_registration_fee")
+    private BigDecimal offlineRegistrationFee;
+
+    @Column(name = "online_registration_fee")
+    private BigDecimal onlineRegistrationFee;
 
     @Column(name = "venue")
     private String venue;

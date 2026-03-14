@@ -367,10 +367,5 @@ public class TrainingController {
         );
     }
 
-    @GetMapping(value = "/tmds-dashboard")
-    public ResponseEntity<List<HRMSCadreDTO>> getTMDSDashboardData(@RequestHeader(value = "username", required = false) String username ) {
-        List<HRMSCadreDTO> list = trainingService.getTMDSDashboardData(username);
-        return ResponseEntity.ok(list);
-    }
 
 }

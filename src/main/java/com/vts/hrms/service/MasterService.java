@@ -95,7 +95,9 @@ public class MasterService {
     @Cacheable(value = "employeeList")
     public List<EmployeeDTO> getEmployeeList() {
         log.info("Fetching employee master");
-        return masterClient.getEmployeeMasterList(xApiKey);
+        return masterClient.getEmployeeMasterList(xApiKey).stream()
+                .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
+                .toList();
     }
 
     @Cacheable(value = "signAuthRoles", key = "#username")

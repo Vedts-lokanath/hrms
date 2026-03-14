@@ -12,6 +12,7 @@ import java.time.LocalDate;
 public class CourseDTO implements Serializable {
 
     private Long courseId;
+    private String courseCode;
 
     @NotBlank(message = "Course Name is required")
     private String courseName;
@@ -27,7 +28,9 @@ public class CourseDTO implements Serializable {
     private String organizer;
 
     @NotNull(message = "Registration Fee is required")
-    private BigDecimal registrationFee;
+    private BigDecimal offlineRegistrationFee;
+
+    private BigDecimal onlineRegistrationFee;
 
     @NotBlank(message = "Venue is required")
     private String venue;

@@ -5,7 +5,7 @@ import lombok.Data;
 import java.io.Serializable;
 
 @Data
-public class HRMSCadreDTO implements Serializable {
+public class HRMSOrganizerDTO implements Serializable {
 
     private String category;
     private Long trainedCount;
