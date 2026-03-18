@@ -100,7 +100,7 @@ public class AdminService {
     }
 
 
-    @CacheEvict(value = "userList")
+    @CacheEvict(value = "userList", allEntries = true)
     @Transactional
     public UserResponseDTO addNewUser(UserResponseDTO dto, String username) {
 
@@ -151,7 +151,7 @@ public class AdminService {
         }
     }
 
-    @CacheEvict(value = "userList")
+    @CacheEvict(value = "userList", allEntries = true)
     @Transactional
     public UserResponseDTO updateUser(UserResponseDTO dto, String username) {
 

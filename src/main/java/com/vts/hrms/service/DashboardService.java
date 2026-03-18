@@ -42,4 +42,10 @@ public class DashboardService {
 
         return requisitionRepository.getRequisitionFilterDashboard(startDate, endDate);
     }
+
+    public List<RequisitionDashboardDTO> getUserRequisitionFilter(Long empId, LocalDate startDate, LocalDate endDate) {
+        log.info("Fetching organizer wise requisition dashboard for empId {} from {} to {}", empId, startDate, endDate);
+
+        return requisitionRepository.getRequisitionFilterUserDashboard(empId, startDate, endDate);
+    }
 }

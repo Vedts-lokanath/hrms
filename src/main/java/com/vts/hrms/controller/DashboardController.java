@@ -63,4 +63,16 @@ public class DashboardController {
         return ResponseEntity.ok(list);
     }
 
+    @GetMapping("/user-requisition-filter")
+    public ResponseEntity<List<RequisitionDashboardDTO>> getUserRequisitionFilter(
+            @RequestParam Long empId,
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate) {
+
+        List<RequisitionDashboardDTO> response =
+                dashboardService.getUserRequisitionFilter(empId, startDate, endDate);
+
+        return ResponseEntity.ok(response);
+    }
+
 }
