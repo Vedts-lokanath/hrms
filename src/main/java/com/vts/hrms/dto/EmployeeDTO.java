@@ -14,27 +14,13 @@ import java.io.Serializable;
 public class EmployeeDTO implements Serializable {
 
     private Long empId;
-
-    @NotBlank(message = "Title is required")
     private String title;
     private String salutation;
-
-    @NotBlank(message = "Employee code is required")
     private String empNo;
-
-    @NotBlank(message = "Employee type is required")
     private String employeeType;
-
-    @NotBlank(message = "Full name is required")
     private String empName;
-
-    @NotNull(message = "DesignationId is required")
     private Long designationId;
-
-    @NotNull(message = "DivisionId is required")
     private Long divisionId;
-
-    @NotBlank(message = "Employee status is required")
     private String empStatus;
 
     private Long srNo;
@@ -56,5 +42,19 @@ public class EmployeeDTO implements Serializable {
     private String internetEmail;
     private Long superiorOfficer;
     private int isActive;
+    private String photo;
+
+    private String desigGroup;
+    private String desigSubCadre;
+    private String officerType;
+
+    private String currentAddress;
+    private String permanentAddress;
+    private String hometownAddress;
+    private String bankFullDetails;
+    private String passportFullDetails;
+
+    private EmployeeDetailsDTO employeeDetails;
+    private LabDetailsDTO labDetails;
 
 }

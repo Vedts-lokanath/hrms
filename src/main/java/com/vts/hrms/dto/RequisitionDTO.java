@@ -77,6 +77,7 @@ public class RequisitionDTO implements Serializable {
     private String approvedOfficerName;
     private String empNo;
     private String empDesigName;
+    private String desigCadre;
     private String empDivCode;
     private String email;
     private String mobileNo;
