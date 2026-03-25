@@ -34,6 +34,7 @@ public class AdminService {
     private final FormDetailRepository formDetailRepository;
     private final FormRoleAccessRepository formRoleAccessRepository;
     private final NotificationRepository notificationRepository;
+    private final TrainingService trainingService;
 
 
     @Value("${x_api_key}")
@@ -42,7 +43,7 @@ public class AdminService {
     @Value("${labCode}")
     private String labCode;
 
-    public AdminService(RoleRepository roleRepository, LoginRepository loginRepository, RoleSecurityRepository roleSecurityRepository, MasterClientService masterClient, FormModuleRepository formModuleRepository, FormDetailRepository formDetailRepository, FormRoleAccessRepository formRoleAccessRepository, NotificationRepository notificationRepository) {
+    public AdminService(RoleRepository roleRepository, LoginRepository loginRepository, RoleSecurityRepository roleSecurityRepository, MasterClientService masterClient, FormModuleRepository formModuleRepository, FormDetailRepository formDetailRepository, FormRoleAccessRepository formRoleAccessRepository, NotificationRepository notificationRepository, TrainingService trainingService) {
         this.roleRepository = roleRepository;
         this.loginRepository = loginRepository;
         this.roleSecurityRepository = roleSecurityRepository;
@@ -51,6 +52,7 @@ public class AdminService {
         this.formDetailRepository = formDetailRepository;
         this.formRoleAccessRepository = formRoleAccessRepository;
         this.notificationRepository = notificationRepository;
+        this.trainingService = trainingService;
     }
 
     @Cacheable(value = "roleList")
@@ -71,11 +73,7 @@ public class AdminService {
         log.info("Fetching all users");
         List<UserResponseDTO> userList = loginRepository.getUserList();
 
-        List<EmployeeDTO> employeeList = masterClient.getEmployeeMasterList(xApiKey);
-
-        Map<Long, EmployeeDTO> employeeMap = employeeList.stream()
-                .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
+        Map<Long, EmployeeDTO> employeeMap = trainingService.getLongEmployeeDTOMap();
 
         // Set employee details into user response
         for (UserResponseDTO user : userList) {

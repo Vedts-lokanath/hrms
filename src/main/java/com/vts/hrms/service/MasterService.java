@@ -41,14 +41,16 @@ public class MasterService {
     private final SignRoleAuthorityRepository signRoleAuthorityRepository;
     private final SignAuthRoleMapper signAuthRoleMapper;
     private final SignRoleAuthorityMapper signRoleAuthorityMapper;
+    private final TrainingService trainingService;
 
-    public MasterService(MasterClientService masterClient, LoginRepository loginRepository, SignAuthRoleRepository signAuthRoleRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, SignAuthRoleMapper signAuthRoleMapper, SignRoleAuthorityMapper signRoleAuthorityMapper) {
+    public MasterService(MasterClientService masterClient, LoginRepository loginRepository, SignAuthRoleRepository signAuthRoleRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, SignAuthRoleMapper signAuthRoleMapper, SignRoleAuthorityMapper signRoleAuthorityMapper, TrainingService trainingService) {
         this.masterClient = masterClient;
         this.loginRepository = loginRepository;
         this.signAuthRoleRepository = signAuthRoleRepository;
         this.signRoleAuthorityRepository = signRoleAuthorityRepository;
         this.signAuthRoleMapper = signAuthRoleMapper;
         this.signRoleAuthorityMapper = signRoleAuthorityMapper;
+        this.trainingService = trainingService;
     }
 
     @Cacheable(value = "designationList")
@@ -126,14 +128,10 @@ public class MasterService {
         }
 
         List<SignAuthRole> authRoleList = signAuthRoleRepository.findAll();
-        List<EmployeeDTO> employeeList = masterClient.getEmployeeMasterList(xApiKey);
-
         Map<Long, SignAuthRole> signRoleMap = authRoleList.stream()
                 .collect(Collectors.toMap(SignAuthRole::getSignAuthRoleId, Function.identity()));
 
-        Map<Long, EmployeeDTO> employeeMap = employeeList.stream()
-                .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, Function.identity()));
+        Map<Long, EmployeeDTO> employeeMap = trainingService.getLongEmployeeDTOMap();
 
         for (SignRoleAuthorityDTO dto : authorityDTOList) {
 

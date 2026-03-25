@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -145,6 +146,7 @@ public class TrainingService {
         return calenderRepository.findById(id).map(calenderMapper::toDto);
     }
 
+    @CacheEvict(value = "courseCache", allEntries = true)
     @Transactional
     public CourseDTO addCourseData(@Valid CourseDTO dto, String username) {
         log.info("Request to add course {} by {}", dto.getCourseName(), username);
@@ -171,7 +173,6 @@ public class TrainingService {
             return List.of();
         }
         List<Course> courseList = new ArrayList<>();
-        List<Organizer> organizerList = organizerRepository.findAllByIsActive(1);
         if (orgId > 0) {
             courseList = courseRepository.findAllByOrganizerIdAndIsActive(orgId, 1);
         } else {
@@ -183,9 +184,7 @@ public class TrainingService {
                 .sorted(Comparator.comparing(Course::getCreatedDate).reversed())
                 .toList();
 
-        Map<Long, Organizer> organizerMap = organizerList.stream()
-                .collect(Collectors.toMap(Organizer::getOrganizerId, Function.identity()));
-
+        Map<Long, Organizer> organizerMap = getOrganizerMap();
         Map<Long, Eligibility> eligibilityMap = eligibilityList.stream()
                 .collect(Collectors.toMap(Eligibility::getEligibilityId, Function.identity()));
 
@@ -273,18 +272,10 @@ public class TrainingService {
 
         List<EmployeeDTO> employeeList = masterClient.getEmployeeMasterList(xApiKey);
 
-        Map<Long, EmployeeDTO> employeeMap = employeeList.stream()
-                .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
-
-        Map<Long, Organizer> organizerMap = organizerList.stream()
-                .collect(Collectors.toMap(Organizer::getOrganizerId, Function.identity()));
-
-        Map<Long, Course> courseMap = courseList.stream()
-                .collect(Collectors.toMap(Course::getCourseId, Function.identity()));
-
-        Map<String, Status> statusMap = statusList.stream()
-                .collect(Collectors.toMap(Status::getStatusCode, Function.identity()));
+        Map<Long, EmployeeDTO> employeeMap = getLongEmployeeDTOMap();
+        Map<Long, Organizer> organizerMap = getOrganizerMap();
+        Map<Long, Course> courseMap = getCourseMap();
+        Map<String, Status> statusMap = getStatusMap();
 
         if (Arrays.asList("ROLE_ADMIN", "ROLE_AD_HRT").contains(roleName)) {
 
@@ -361,14 +352,8 @@ public class TrainingService {
         if (id == null) {
             throw new NotFoundException("Requisition id cannot be null");
         }
-        List<Organizer> organizerList = organizerRepository.findAllByIsActive(1);
-        List<Course> courseList = courseRepository.findAllByIsActive(1);
-
-        Map<Long, Organizer> organizerMap = organizerList.stream()
-                .collect(Collectors.toMap(Organizer::getOrganizerId, Function.identity()));
-
-        Map<Long, Course> courseMap = courseList.stream()
-                .collect(Collectors.toMap(Course::getCourseId, Function.identity()));
+        Map<Long, Organizer> organizerMap = getOrganizerMap();
+        Map<Long, Course> courseMap = getCourseMap();
 
         Requisition requisition = requisitionRepository.findById(id).orElseThrow(() -> new NotFoundException("Requisition not found"));
 
@@ -541,6 +526,8 @@ public class TrainingService {
         return feedbbackdto;
     }
 
+    @CacheEvict(value = "courseCache", allEntries = true)
+    @Transactional
     public Optional<CourseDTO> editCourseData(@Valid CourseDTO dto, String username) {
         log.info("Request to edit program id {} by {}", dto.getCourseId(), username);
 
@@ -556,6 +543,7 @@ public class TrainingService {
                 .map(courseMapper::toDto);
     }
 
+    @CacheEvict(value = "organizerCache", allEntries = true)
     public OrganizerDTO addOrganizer(@Valid OrganizerDTO dto, String username) {
         log.info("Request to add organizer {} by {}", dto.getOrganizer(), username);
         Organizer organizer = organizerMapper.toEntity(dto);
@@ -567,6 +555,7 @@ public class TrainingService {
         return organizerMapper.toDto(organizer);
     }
 
+    @CacheEvict(value = "organizerCache", allEntries = true)
     public Optional<OrganizerDTO> editOrganizer(@Valid OrganizerDTO dto, String username) {
         log.info("Request to edit organizer {} by {}", dto.getOrganizer(), username);
 
@@ -690,21 +679,9 @@ public class TrainingService {
 
         RequisitionDTO dto = requisitionMapper.toDto(requisition);
 
-        // Fetch master data
-        List<Organizer> organizerList = organizerRepository.findAllByIsActive(1);
-        List<Course> courseList = courseRepository.findAllByIsActive(1);
-        List<EmployeeDTO> employeeList = masterClient.getEmployeeMasterList(xApiKey);
-
-        // Convert to maps safely
-        Map<Long, Organizer> organizerMap = organizerList.stream()
-                .collect(Collectors.toMap(Organizer::getOrganizerId, Function.identity()));
-
-        Map<Long, Course> courseMap = courseList.stream()
-                .collect(Collectors.toMap(Course::getCourseId, Function.identity()));
-
-        Map<Long, EmployeeDTO> employeeMap = employeeList.stream()
-                .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, Function.identity()));
+        Map<Long, Organizer> organizerMap = getOrganizerMap();
+        Map<Long, Course> courseMap = getCourseMap();
+        Map<Long, EmployeeDTO> employeeMap = getLongEmployeeDTOMap();
 
         // Fetch latest transactions
         List<RequisitionTransaction> transactions =
@@ -851,22 +828,11 @@ public class TrainingService {
         List<RequisitionDTO> dtoList = requisitionMapper.toDto(requisitionList);
         // Fetch master data
         List<Organizer> organizerList = organizerRepository.findAllByIsActive(1);
-        List<Course> courseList = courseRepository.findAllByIsActive(1);
-        List<EmployeeDTO> employeeList = masterClient.getEmployeeMasterList(xApiKey);
-        List<Status> statusList = statusRepository.findAll();
 
-        Map<String, Status> statusMap = statusList.stream()
-                .collect(Collectors.toMap(Status::getStatusCode, Function.identity()));
-
-        Map<Long, Organizer> organizerMap = organizerList.stream()
-                .collect(Collectors.toMap(Organizer::getOrganizerId, Function.identity()));
-
-        Map<Long, Course> courseMap = courseList.stream()
-                .collect(Collectors.toMap(Course::getCourseId, Function.identity()));
-
-        Map<Long, EmployeeDTO> employeeMap = employeeList.stream()
-                .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, Function.identity()));
+        Map<String, Status> statusMap = getStatusMap();
+        Map<Long, Organizer> organizerMap = getOrganizerMap();
+        Map<Long, Course> courseMap = getCourseMap();
+        Map<Long, EmployeeDTO> employeeMap = getLongEmployeeDTOMap();
 
         List<RequisitionTransaction> transactions =
                 transactionRepository.findAllByActionToAndStatusCodeInAndIsActive(empId, statusCodes, 1);
@@ -934,14 +900,9 @@ public class TrainingService {
     public List<RequisitionTransactionDTO> getRequisitionTransaction(Long reqId, String username) {
         log.info("Request to fetch Requisition transaction data for requisitionId {} by {}", reqId, username);
         List<RequisitionTransaction> transactionList = transactionRepository.findAllByRequisitionIdAndIsActive(reqId, 1);
-        List<EmployeeDTO> allActiveEmployees = masterClient.getEmployeeMasterList(xApiKey);
-        List<Status> statusList = statusRepository.findAll();
 
-        Map<String, Status> statusMap = statusList.stream()
-                .collect(Collectors.toMap(Status::getStatusCode, Function.identity()));
-
-        Map<Long, EmployeeDTO> employeeMap = allActiveEmployees.stream()
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
+        Map<String, Status> statusMap = getStatusMap();
+        Map<Long, EmployeeDTO> employeeMap = getLongEmployeeDTOMap();
 
         return transactionList.stream().map(data -> {
 
@@ -1003,10 +964,8 @@ public class TrainingService {
         log.info("Request to fetch evaluation list by {}", username);
 
         List<EvaluationDTO> list = evaluationRepository.findEvaluationData(fromDate, toDate);
-        List<EmployeeDTO> allActiveEmployees = masterClient.getEmployeeMasterList(xApiKey);
 
-        Map<Long, EmployeeDTO> employeeMap = allActiveEmployees.stream()
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
+        Map<Long, EmployeeDTO> employeeMap = getLongEmployeeDTOMap();
 
         return list.stream()
                 .collect(Collectors.groupingBy(EvaluationDTO::getTraineeId))
@@ -1130,11 +1089,8 @@ public class TrainingService {
         Requisition requisition = requisitionRepository.findById(dto.getRequisitionId())
                 .orElseThrow(() -> new NotFoundException("Requisition not found"));
 
-        List<EmployeeDTO> allActiveEmployees = masterClient.getEmployeeMasterList(xApiKey);
 
-        Map<Long, EmployeeDTO> employeeMap = allActiveEmployees.stream()
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
-
+        Map<Long, EmployeeDTO> employeeMap = getLongEmployeeDTOMap();
         EmployeeDTO employeeDTO = employeeMap.get(dto.getActionBy());
 
         if ("AR".equalsIgnoreCase(requisition.getStatus())) {
@@ -1163,13 +1119,7 @@ public class TrainingService {
         FeedbackDTO dto = feedbackMapper.toDto(feedback);
         RequisitionDTO requisitionDTO = getRequisitionById(feedback.getRequisitionId(), username);
 
-        List<EmployeeDTO> employeeList = masterClient.getEmployeeMasterList(xApiKey);
-        Map<Long, EmployeeDTO> employeeMap = employeeList != null
-                ? employeeList.stream()
-                .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp))
-                : Collections.emptyMap();
-
+        Map<Long, EmployeeDTO> employeeMap = getLongEmployeeDTOMap();
         EmployeeDTO employeeDTO = employeeMap.get(feedback.getParticipantId());
 
         if (employeeDTO != null) {
@@ -1286,6 +1236,33 @@ public class TrainingService {
         notification.setCreatedDate(LocalDateTime.now());
         notification.setIsActive(1);
         notificationRepository.save(notification);
+    }
+
+    @Cacheable(value = "employeeMapCache", key = "'employeeMap'")
+    public Map<Long, EmployeeDTO> getLongEmployeeDTOMap() {
+        List<EmployeeDTO> employeeList = masterClient.getEmployeeMasterList(xApiKey);
+
+        return employeeList.stream()
+                .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
+                .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
+    }
+
+    @Cacheable(value = "organizerCache", key = "'organizers'")
+    public Map<Long, Organizer> getOrganizerMap() {
+        return organizerRepository.findAllByIsActive(1).stream()
+                .collect(Collectors.toMap(Organizer::getOrganizerId, Function.identity()));
+    }
+
+    @Cacheable(value = "courseCache", key = "'courses'")
+    public Map<Long, Course> getCourseMap() {
+        return courseRepository.findAllByIsActive(1).stream()
+                .collect(Collectors.toMap(Course::getCourseId, Function.identity()));
+    }
+
+    @Cacheable(value = "statusCache", key = "'status'")
+    public Map<String, Status> getStatusMap() {
+        return statusRepository.findAll().stream()
+                .collect(Collectors.toMap(Status::getStatusCode, Function.identity()));
     }
 
 }

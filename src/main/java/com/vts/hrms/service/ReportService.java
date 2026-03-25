@@ -2,14 +2,12 @@ package com.vts.hrms.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vts.hrms.dto.DivisionDTO;
 import com.vts.hrms.dto.EmployeeDTO;
 import com.vts.hrms.dto.RequisitionDTO;
 import com.vts.hrms.entity.Course;
 import com.vts.hrms.entity.Organizer;
 import com.vts.hrms.entity.Requisition;
 import com.vts.hrms.entity.Status;
-import com.vts.hrms.mapper.FeedbackMapper;
 import com.vts.hrms.mapper.RequisitionMapper;
 import com.vts.hrms.repository.*;
 import com.vts.hrms.util.ApiResponse;
@@ -23,8 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+
 
 @RequiredArgsConstructor
 @Service
@@ -40,14 +37,11 @@ public class ReportService {
 
     private final EmsClientService emsClientService;
     private final ObjectMapper objectMapper;
-    private final MasterClientService masterClient;
-    private final OrganizerRepository organizerRepository;
-    private final CourseRepository courseRepository;
     private final RequisitionMapper requisitionMapper;
     private final RequisitionRepository requisitionRepository;
-    private final StatusRepository statusRepository;
+    private final TrainingService trainingService;
 
-//    @Cacheable(value = "getNominalROllList")
+    @Cacheable(value = "getNominalROllList")
     public List<EmployeeDTO> getNominalRollList(String token) {
         log.info("Fetching nominal roll from EMS");
 
@@ -73,8 +67,7 @@ public class ReportService {
             }
 
             // Convert to List<EmployeeDTO>
-            return objectMapper.convertValue(data, new TypeReference<List<EmployeeDTO>>() {
-            });
+            return objectMapper.convertValue(data, new TypeReference<List<EmployeeDTO>>() {});
 
         } catch (FeignException.Unauthorized ex) {
             log.error("Unauthorized access", ex);
@@ -97,24 +90,11 @@ public class ReportService {
 //    @Cacheable(value = "getCourseTrainingList")
     public List<RequisitionDTO> getCourseTrainingList() {
         log.info("Fetching course training data");
-        List<Organizer> organizerList = organizerRepository.findAllByIsActive(1);
-        List<Course> courseList = courseRepository.findAllByIsActive(1);
-        List<Status> statusList = statusRepository.findAll();
 
-        List<EmployeeDTO> employeeList = masterClient.getEmployeeMasterList(xApiKey);
-
-        Map<Long, EmployeeDTO> employeeMap = employeeList.stream()
-                .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
-
-        Map<Long, Organizer> organizerMap = organizerList.stream()
-                .collect(Collectors.toMap(Organizer::getOrganizerId, Function.identity()));
-
-        Map<Long, Course> courseMap = courseList.stream()
-                .collect(Collectors.toMap(Course::getCourseId, Function.identity()));
-
-        Map<String, Status> statusMap = statusList.stream()
-                .collect(Collectors.toMap(Status::getStatusCode, Function.identity()));
+        Map<Long, EmployeeDTO> employeeMap = trainingService.getLongEmployeeDTOMap();
+        Map<Long, Organizer> organizerMap = trainingService.getOrganizerMap();
+        Map<Long, Course> courseMap = trainingService.getCourseMap();
+        Map<String, Status> statusMap = trainingService.getStatusMap();
 
         List<Requisition> list = requisitionRepository.findAllByIsActive(1);
 
