@@ -12,28 +12,24 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "hrms_calendar")
+@Table(name = "hrms_evaluation")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
-public class Calendar implements Serializable {
+public class Evaluation implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "calendar_id")
-    private Long calendarId;
+    @Column(name = "evaluation_id")
+    private Long evaluationId;
 
-    @Column(name = "organizer_id")
-    private Long organizerId;
+    @Column(name = "requisition_id")
+    private Long requisitionId;
 
-    @Column(name = "year")
-    private String year;
+    @Column(name = "trainee_id")
+    private Long traineeId;
 
-    @Size(max = 100)
-    @Column(name = "calendar_file_name", length = 100)
-    private String calendarFileName;
-
-    @Size(max = 100)
-    @Column(name = "covering_letter", length = 100)
-    private String coveringLetter;
+    @Size(max = 5)
+    @Column(name = "impact", length = 5)
+    private String impact;
 
     @Size(max = 100)
     @Column(name = "created_by", length = 100)
@@ -52,5 +48,4 @@ public class Calendar implements Serializable {
     @NotNull
     @Column(name = "is_active", nullable = false)
     private Integer isActive;
-
 }

@@ -11,6 +11,8 @@ import com.vts.hrms.repository.SignRoleAuthorityRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,27 +32,34 @@ public class MasterService {
     @Value("${x_api_key}")
     private String xApiKey;
 
+    @Value("${labCode}")
+    private String labCode;
+
     private final MasterClientService masterClient;
     private final LoginRepository loginRepository;
     private final SignAuthRoleRepository signAuthRoleRepository;
     private final SignRoleAuthorityRepository signRoleAuthorityRepository;
     private final SignAuthRoleMapper signAuthRoleMapper;
     private final SignRoleAuthorityMapper signRoleAuthorityMapper;
+    private final TrainingService trainingService;
 
-    public MasterService(MasterClientService masterClient, LoginRepository loginRepository, SignAuthRoleRepository signAuthRoleRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, SignAuthRoleMapper signAuthRoleMapper, SignRoleAuthorityMapper signRoleAuthorityMapper) {
+    public MasterService(MasterClientService masterClient, LoginRepository loginRepository, SignAuthRoleRepository signAuthRoleRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, SignAuthRoleMapper signAuthRoleMapper, SignRoleAuthorityMapper signRoleAuthorityMapper, TrainingService trainingService) {
         this.masterClient = masterClient;
         this.loginRepository = loginRepository;
         this.signAuthRoleRepository = signAuthRoleRepository;
         this.signRoleAuthorityRepository = signRoleAuthorityRepository;
         this.signAuthRoleMapper = signAuthRoleMapper;
         this.signRoleAuthorityMapper = signRoleAuthorityMapper;
+        this.trainingService = trainingService;
     }
 
+    @Cacheable(value = "designationList")
     public List<DesignationDTO> getEmpDesigMaster() {
         log.info("Fetching designation master");
         return masterClient.getEmpDesigMaster(xApiKey);
     }
 
+    @Cacheable(value = "divisionList")
     public List<DivisionDTO> getDivisionMaster() {
         log.info("Fetching division master");
         return masterClient.getDivisionMaster(xApiKey);
@@ -61,9 +70,10 @@ public class MasterService {
 
         LoginEmployeeDto dto = loginRepository.findByUserName(username);
 
-        List<EmployeeDTO> employeeList = masterClient.getEmployeeList(xApiKey);
+        List<EmployeeDTO> employeeList = masterClient.getEmployeeMasterList(xApiKey);
 
         Map<Long, EmployeeDTO> employeeMap = employeeList.stream()
+                .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
                 .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
 
         EmployeeDTO employee = employeeMap.get(dto.getEmpId());
@@ -72,6 +82,7 @@ public class MasterService {
         dto.setEmpNo(employee.getEmpNo());
         dto.setEmployeeType(employee.getEmployeeType());
         dto.setTitle(employee.getTitle());
+        dto.setSalutation(employee.getSalutation());
         dto.setEmpName(employee.getEmpName());
         dto.setEmpDesigName(employee.getEmpDesigName());
         dto.setEmpStatus(employee.getEmpStatus());
@@ -83,21 +94,26 @@ public class MasterService {
         return dto;
     }
 
+    @Cacheable(value = "employeeList")
     public List<EmployeeDTO> getEmployeeList() {
         log.info("Fetching employee master");
-        return masterClient.getEmployeeList(xApiKey);
+        return masterClient.getEmployeeMasterList(xApiKey).stream()
+                .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
+                .toList();
     }
 
+    @Cacheable(value = "signAuthRoles", key = "#username")
     @Transactional(readOnly = true)
     public List<SignAuthRoleDTO> getSignAuthRoles(String username) {
         log.info("Request to get all SignAuthRoles by username {}", username);
         return signAuthRoleRepository
-                .findAll()
+                .findAllByIsActive(1)
                 .stream()
                 .map(signAuthRoleMapper::toDto)
                 .collect(Collectors.toCollection(LinkedList::new));
     }
 
+    @Cacheable(value = "signAuthorities", key = "#username")
     @Transactional(readOnly = true)
     public List<SignRoleAuthorityDTO> getSignAuthorities(String username) {
         log.info("Request to get all sign role authority list by username {}", username);
@@ -112,13 +128,10 @@ public class MasterService {
         }
 
         List<SignAuthRole> authRoleList = signAuthRoleRepository.findAll();
-        List<EmployeeDTO> employeeList = masterClient.getEmployeeList(xApiKey);
-
         Map<Long, SignAuthRole> signRoleMap = authRoleList.stream()
                 .collect(Collectors.toMap(SignAuthRole::getSignAuthRoleId, Function.identity()));
 
-        Map<Long, EmployeeDTO> employeeMap = employeeList.stream()
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, Function.identity()));
+        Map<Long, EmployeeDTO> employeeMap = trainingService.getLongEmployeeDTOMap();
 
         for (SignRoleAuthorityDTO dto : authorityDTOList) {
 
@@ -136,6 +149,7 @@ public class MasterService {
         return authorityDTOList;
     }
 
+    @CacheEvict(value="signAuthorities", allEntries=true)
     public SignRoleAuthorityDTO addSignRoleAuthority(SignRoleAuthorityDTO dto, String username) {
         SignRoleAuthority roleAuthority = signRoleAuthorityMapper.toEntity(dto);
         roleAuthority.setCreatedBy(username);
@@ -145,6 +159,7 @@ public class MasterService {
         return signRoleAuthorityMapper.toDto(roleAuthority);
     }
 
+    @CacheEvict(value="signAuthorities", allEntries=true)
     public Optional<SignRoleAuthorityDTO> updateSignRoleAuthority(SignRoleAuthorityDTO dto, String username) {
         log.info("Request to update sign role authority for id {} by {}", dto.getSignRoleAuthorityId(), username);
         return signRoleAuthorityRepository

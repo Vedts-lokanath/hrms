@@ -8,32 +8,47 @@ import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "hrms_calendar")
+@Table(name = "hrms_course")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
-public class Calendar implements Serializable {
+public class Course implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "calendar_id")
-    private Long calendarId;
+    @Column(name = "course_id")
+    private Long courseId;
+
+    @Column(name = "course_code")
+    private String courseCode;
+
+    @Column(name = "course_name")
+    private String courseName;
 
     @Column(name = "organizer_id")
     private Long organizerId;
 
-    @Column(name = "year")
-    private String year;
+    @Column(name = "eligibility_id")
+    private Long eligibilityId;
 
-    @Size(max = 100)
-    @Column(name = "calendar_file_name", length = 100)
-    private String calendarFileName;
+    @Column(name = "from_date")
+    private LocalDate fromDate;
 
-    @Size(max = 100)
-    @Column(name = "covering_letter", length = 100)
-    private String coveringLetter;
+    @Column(name = "to_date")
+    private LocalDate toDate;
+
+    @Column(name = "offline_registration_fee")
+    private BigDecimal offlineRegistrationFee;
+
+    @Column(name = "online_registration_fee")
+    private BigDecimal onlineRegistrationFee;
+
+    @Column(name = "venue")
+    private String venue;
 
     @Size(max = 100)
     @Column(name = "created_by", length = 100)
@@ -52,5 +67,6 @@ public class Calendar implements Serializable {
     @NotNull
     @Column(name = "is_active", nullable = false)
     private Integer isActive;
+
 
 }

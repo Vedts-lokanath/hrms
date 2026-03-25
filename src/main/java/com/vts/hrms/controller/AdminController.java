@@ -75,25 +75,25 @@ public class AdminController {
         );
     }
 
-    @RequestMapping (value="/header-module", method=RequestMethod.POST,produces="application/json")
+    @RequestMapping(value = "/header-module", method = RequestMethod.POST, produces = "application/json")
     public List<FormModuleDto> headerModule(@RequestBody Long FormRoleId) throws Exception {
 
         return adminService.formModuleList(FormRoleId);
     }
 
-    @RequestMapping (value="/header-detail", method=RequestMethod.POST,produces="application/json")
+    @RequestMapping(value = "/header-detail", method = RequestMethod.POST, produces = "application/json")
     public List<FormDetailDto> headerDetail(@RequestBody Long FormRoleId) throws Exception {
 
         return adminService.formModuleDetailList(FormRoleId);
     }
 
-    @PostMapping(value = "/form-modules-list", produces="application/json")
-    public ResponseEntity<List<FormModuleDto>> formModule()throws Exception{
+    @PostMapping(value = "/form-modules-list", produces = "application/json")
+    public ResponseEntity<List<FormModuleDto>> formModule() throws Exception {
 
         List<FormModuleDto> list = null;
 
         try {
-            list =  adminService.getformModulelist();
+            list = adminService.getformModulelist();
         } catch (Exception e) {
 
             e.printStackTrace();
@@ -118,10 +118,10 @@ public class AdminController {
         }
     }
 
-    @PostMapping(value="update-form-role-access", produces="application/json")
-    public String updateFormRoleAccess(@RequestBody FormRoleAccessDto accessDto, @RequestHeader  String username) throws Exception {
+    @PostMapping(value = "update-form-role-access", produces = "application/json")
+    public String updateFormRoleAccess(@RequestBody FormRoleAccessDto accessDto, @RequestHeader String username) throws Exception {
 
-        String result=null;
+        String result = null;
         try {
             result = adminService.updateformroleaccess(accessDto, username);
             return result;
@@ -131,7 +131,7 @@ public class AdminController {
         }
     }
 
-    @GetMapping(value="/user-login-access")
+    @GetMapping(value = "/user-login-access")
     public ResponseEntity<Boolean> checkAccess(@RequestHeader String username) {
         LOG.info(" REST request to check access: {}", username);
         try {
@@ -140,6 +140,41 @@ public class AdminController {
         } catch (Exception e) {
             LOG.error("Error while fetching user access {}", e.getMessage(), e);
             return ResponseEntity.ok(false);
+        }
+    }
+
+    @GetMapping(value = "/notification-count", produces = "application/json")
+    public ResponseEntity<Integer> getNotificationCount(@RequestHeader String username) throws Exception {
+        LOG.info(" Inside get get-notification-count{}", username);
+        Integer result = adminService.getNotificationCount(username);
+        if (result != null) {
+            return new ResponseEntity<>(result, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+
+    @GetMapping(value = "/notification-list", produces = "application/json")
+    public ResponseEntity<List<NotificationDTO>> getNotification(@RequestHeader String username) throws Exception {
+        LOG.info(" Inside get get-notification List {}", username);
+        List<NotificationDTO> result = adminService.getNotificationList(username);
+        if (result != null) {
+            return new ResponseEntity<>(result, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+
+    @PutMapping(value = "/update-notification", produces = "application/json")
+    public ResponseEntity<Long> updateNotification(@RequestHeader String username, @RequestParam String notificationId) throws Exception {
+        LOG.info(" Inside  update-notification  {}", username);
+        long result = adminService.updateNotification(username, notificationId);
+        if (result != 0) {
+            return new ResponseEntity<>(200L, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }
     }
 

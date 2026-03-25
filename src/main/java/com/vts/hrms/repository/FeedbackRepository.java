@@ -7,6 +7,9 @@ import java.util.List;
 
 public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
 
-    List<Feedback> findByIsActive(Integer isActive);
+    List<Feedback> findAllByParticipantIdAndIsActiveOrderByFeedbackIdDesc(Long empId, int isActive);
 
+    List<Feedback> findByIsActiveOrderByFeedbackIdDesc(int isActive);
+
+    List<Feedback> findAllByParticipantIdInAndIsActiveOrderByFeedbackIdDesc(List<Long> empIds, int isActive);
 }

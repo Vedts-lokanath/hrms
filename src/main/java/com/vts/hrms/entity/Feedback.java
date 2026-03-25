@@ -63,6 +63,15 @@ public class Feedback {
     @Column(name = "seminar_venue")
     private String seminarVenue;
 
+    @Column(name = "is_accepted")
+    private String isAccepted;
+
+    @Column(name = "accepted_by")
+    private Long acceptedBy;
+
+    @Column(name = "accepted_date")
+    private LocalDateTime acceptedDate;
+
     @Size(max = 100)
     @Column(name = "created_by", length = 100)
     private String createdBy;

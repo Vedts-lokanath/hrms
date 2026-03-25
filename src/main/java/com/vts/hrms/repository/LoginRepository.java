@@ -32,13 +32,12 @@ public interface LoginRepository extends JpaRepository<Login, Long> {
 
     boolean existsByUsernameIgnoreCase(String username);
 
-    @Query(value = "SELECT DISTINCT d.emp_id, NULL AS emp_code, NULL AS employee_type, NULL AS title, NULL AS full_name, \n" +
-            "            NULL AS designation_name, NULL AS employee_status, f.role_name, NULL AS division_id, d.login_id ,f.role_id\n" +
-            "            FROM login d \n" +
-            "            JOIN login_role_security e ON e.login_id=d.login_id \n" +
-            "            JOIN role_security f ON f.role_id=e.role_id \n" +
-            "            WHERE  d.username=:username \n" +
-            "            AND d.is_active=1", nativeQuery = true)
+    @Query(value = "SELECT DISTINCT d.emp_id, f.role_name, d.login_id ,f.role_id " +
+            "FROM login d " +
+            "JOIN login_role_security e ON e.login_id=d.login_id " +
+            "JOIN role_security f ON f.role_id=e.role_id " +
+            "WHERE d.username=:username " +
+            "AND d.is_active=1", nativeQuery = true)
     LoginEmployeeDto findByUserName(@Param("username") String username);
 
     Login findByUsernameAndIsActive(String username, int isActive);

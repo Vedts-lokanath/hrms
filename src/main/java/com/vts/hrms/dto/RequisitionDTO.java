@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
@@ -20,8 +21,10 @@ public class RequisitionDTO implements Serializable {
 
     private Long requisitionId;
 
-    @NotNull(message = "Program is required")
-    private Long programId;
+    @NotNull(message = "Course is required")
+    private Long courseId;
+
+    private String requisitionNumber;
 
     @NotNull(message = "Initiating Officer is required")
     private Long initiatingOfficer;
@@ -41,18 +44,23 @@ public class RequisitionDTO implements Serializable {
     @NotBlank(message = "Course submission is required")
     private String isSubmitted;
 
+    private BigDecimal registrationFee;
     private String reference;
     private String venue;
     private String necessity;
-    private BigDecimal registrationFee;
+    private BigDecimal offlineRegistrationFee;
+    private BigDecimal onlineRegistrationFee;
 
+    private String reason;
     private String status;
+    private String statusName;
+    private String statusColor;
     private String fileEcs;
     private String fileCheque;
     private String filePan;
     private String fileBrochure;
 
-    private String programName;
+    private String courseName;
     private Long organizerId;
     private String organizer;
     private String organizerContactName;
@@ -60,12 +68,26 @@ public class RequisitionDTO implements Serializable {
     private String organizerFaxNo;
     private String organizerEmail;
 
+    private Long actionBy;
+    private Long actionTo;
+    private Long verifiedBy;
+    private Long approvedBy;
     private String initiatingOfficerName;
+    private String verifiedOfficerName;
+    private String approvedOfficerName;
     private String empNo;
     private String empDesigName;
+    private String desigCadre;
     private String empDivCode;
     private String email;
     private String mobileNo;
+
+    private String remarks;
+
+    private String forwardByName;
+    private LocalDateTime forwardDate;
+    private LocalDateTime verifiedDate;
+    private LocalDateTime approvedDate;
 
     private MultipartFile multipartFileEcs;
     private MultipartFile multipartFileCheque;

@@ -8,6 +8,7 @@ import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -22,9 +23,12 @@ public class Requisition implements Serializable {
     @Column(name = "requisition_id", nullable = false)
     private Long requisitionId;
 
+    @Column(name = "requisition_number", nullable = false, unique = true)
+    private String requisitionNumber;
+
     @NotNull
-    @Column(name = "program_id", nullable = false)
-    private Long programId;
+    @Column(name = "course_id", nullable = false)
+    private Long courseId;
 
     @NotNull
     @Column(name = "initiating_officer", nullable = false)
@@ -42,6 +46,9 @@ public class Requisition implements Serializable {
 
     @Column(name = "duration")
     private Integer duration;
+
+    @Column(name = "registration_fee")
+    private BigDecimal registrationFee;
 
     @Column(name = "mode_of_payment")
     private String modeOfPayment;
@@ -68,6 +75,9 @@ public class Requisition implements Serializable {
 
     @Column(name = "file_brochure")
     private String fileBrochure;
+
+    @Column(name = "reason")
+    private String reason;
 
     @NotNull
     @Column(name = "is_active", nullable = false)

@@ -23,6 +23,8 @@ public interface MasterClientService {
     @GetMapping("/getEmployee")
     List<EmployeeDTO> getEmployeeList(@RequestHeader("X-API-KEY") String apiKey);
 
+    @GetMapping("/getEmployeeMaster")
+    List<EmployeeDTO> getEmployeeMasterList(@RequestHeader("X-API-KEY") String apiKey);
 
     @GetMapping("/getEmployee")
     List<EmployeeDTO> getEmployee(@RequestHeader("X-API-KEY") String apiKey, @RequestParam("empId") long empId);

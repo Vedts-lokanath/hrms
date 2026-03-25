@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-public class OrganizerIdDTO {
+public class OrganizerDTO {
 
     private Long organizerId;
 

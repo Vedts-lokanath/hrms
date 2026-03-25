@@ -1,11 +1,100 @@
 package com.vts.hrms.repository;
 
+import com.vts.hrms.dto.RequisitionDashboardDTO;
+import com.vts.hrms.entity.Feedback;
 import com.vts.hrms.entity.Requisition;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface RequisitionRepository extends JpaRepository<Requisition, Long> {
 
     List<Requisition> findAllByIsActive(int isActive);
+
+    List<Requisition> findAllByStatusAndIsActive(String status, int isActive);
+
+    List<Requisition> findAllByStatusInAndIsActive(List<String> statusCodes, int isActive);
+
+    @Query("""
+                SELECT DISTINCT r
+                FROM Requisition r
+                JOIN RequisitionTransaction t
+                    ON r.requisitionId = t.requisitionId
+                WHERE t.actionTo = :empId
+                  AND r.status=t.statusCode
+                  AND t.statusCode IN :statusCodes
+                  AND t.isActive = 1
+                  AND r.isActive = 1
+            """)
+    List<Requisition> findApprovalList(
+            @Param("empId") Long empId,
+            @Param("statusCodes") List<String> statusCodes
+    );
+
+    List<Requisition> findAllByIsActiveOrderByRequisitionIdDesc(int isActive);
+
+    List<Requisition> findAllByInitiatingOfficerAndIsActiveOrderByRequisitionIdDesc(Long empId, int isActive);
+
+    List<Requisition> findAllByInitiatingOfficerInAndIsActiveOrderByRequisitionIdDesc(List<Long> empIds, int isActive);
+
+    @Query("""
+            SELECT new com.vts.hrms.dto.RequisitionDashboardDTO(
+            c.organizerId,
+            o.organizer,
+            COUNT(r.requisitionId),
+            SUM(CASE WHEN r.status IN ('AA','REV','RR','RV') THEN 1 ELSE 0 END),
+            SUM(CASE WHEN r.status='AF' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN r.status='AR' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN r.status='AV' THEN 1 ELSE 0 END)
+            )
+            FROM Requisition r
+            JOIN Course c ON r.courseId = c.courseId
+            JOIN Organizer o ON c.organizerId = o.organizerId
+            GROUP BY c.organizerId,o.organizer
+            """)
+    List<RequisitionDashboardDTO> getOrganizerWiseRequisitionStats();
+
+    @Query("""
+            SELECT new com.vts.hrms.dto.RequisitionDashboardDTO(
+            c.organizerId,
+            o.organizer,
+            COUNT(r.requisitionId),
+            SUM(CASE WHEN r.status IN ('AA','REV','RR','RV') THEN 1 ELSE 0 END),
+            SUM(CASE WHEN r.status='AF' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN r.status='AR' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN r.status='AV' THEN 1 ELSE 0 END)
+            )
+            FROM Requisition r
+            JOIN Course c ON r.courseId = c.courseId
+            JOIN Organizer o ON c.organizerId = o.organizerId
+            WHERE r.isActive = 1
+            AND r.fromDate >= :startDate
+            AND r.toDate <= :endDate
+            GROUP BY c.organizerId,o.organizer
+            """)
+    List<RequisitionDashboardDTO> getRequisitionFilterDashboard(LocalDate startDate, LocalDate endDate);
+
+    @Query("""
+            SELECT new com.vts.hrms.dto.RequisitionDashboardDTO(
+            c.organizerId,
+            o.organizer,
+            COUNT(r.requisitionId),
+            SUM(CASE WHEN r.status IN ('AA','REV','RR','RV') THEN 1 ELSE 0 END),
+            SUM(CASE WHEN r.status='AF' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN r.status='AR' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN r.status='AV' THEN 1 ELSE 0 END)
+            )
+            FROM Requisition r
+            JOIN Course c ON r.courseId = c.courseId
+            JOIN Organizer o ON c.organizerId = o.organizerId
+            WHERE r.isActive = 1
+            AND r.initiatingOfficer = :empId
+            AND r.fromDate >= :startDate
+            AND r.toDate <= :endDate
+            GROUP BY c.organizerId,o.organizer
+            """)
+    List<RequisitionDashboardDTO> getRequisitionFilterUserDashboard(Long empId, LocalDate startDate, LocalDate endDate);
 }

@@ -4,42 +4,37 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
-import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "hrms_program")
-@Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
-public class Program implements Serializable {
+@Table(name = "hrms_notification")
+@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+public class Notification implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "program_id")
-    private Long programId;
+    @Column(name = "notification_id")
+    private Long notificationId;
 
-    @Column(name = "program_name")
-    private String programName;
+    @Column(name = "emp_id")
+    private Long empId;
 
-    @Column(name = "organizer_id")
-    private Long organizerId;
+    @Column(name = "notification_by")
+    private Long notificationBy;
 
-    @Column(name = "from_date")
-    private LocalDate fromDate;
+    @Column(name = "notification_url")
+    private String notificationUrl;
 
-    @Column(name = "to_date")
-    private LocalDate toDate;
+    @Column(name = "notification_date")
+    private LocalDate notificationDate;
 
-    @Column(name = "registration_fee")
-    private BigDecimal registrationFee;
-
-    @Column(name = "venue")
-    private String venue;
+    @Column(name = "notification_message")
+    private String notificationMessage;
 
     @Size(max = 100)
     @Column(name = "created_by", length = 100)

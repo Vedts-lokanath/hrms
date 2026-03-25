@@ -8,10 +8,13 @@ import com.vts.hrms.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,12 +33,17 @@ public class AdminService {
     private final FormModuleRepository formModuleRepository;
     private final FormDetailRepository formDetailRepository;
     private final FormRoleAccessRepository formRoleAccessRepository;
+    private final NotificationRepository notificationRepository;
+    private final TrainingService trainingService;
 
 
     @Value("${x_api_key}")
     private String xApiKey;
 
-    public AdminService(RoleRepository roleRepository, LoginRepository loginRepository, RoleSecurityRepository roleSecurityRepository, MasterClientService masterClient, FormModuleRepository formModuleRepository, FormDetailRepository formDetailRepository, FormRoleAccessRepository formRoleAccessRepository) {
+    @Value("${labCode}")
+    private String labCode;
+
+    public AdminService(RoleRepository roleRepository, LoginRepository loginRepository, RoleSecurityRepository roleSecurityRepository, MasterClientService masterClient, FormModuleRepository formModuleRepository, FormDetailRepository formDetailRepository, FormRoleAccessRepository formRoleAccessRepository, NotificationRepository notificationRepository, TrainingService trainingService) {
         this.roleRepository = roleRepository;
         this.loginRepository = loginRepository;
         this.roleSecurityRepository = roleSecurityRepository;
@@ -43,13 +51,16 @@ public class AdminService {
         this.formModuleRepository = formModuleRepository;
         this.formDetailRepository = formDetailRepository;
         this.formRoleAccessRepository = formRoleAccessRepository;
+        this.notificationRepository = notificationRepository;
+        this.trainingService = trainingService;
     }
 
+    @Cacheable(value = "roleList")
     public List<RoleDTO> getRoleList() {
         log.info("Fetching all roles");
         return roleRepository
                 .findAll().stream()
-                .map(data->{
+                .map(data -> {
                     RoleDTO dto = new RoleDTO();
                     dto.setRoleId(data.getRoleId());
                     dto.setRoleName(data.getRoleName());
@@ -57,14 +68,12 @@ public class AdminService {
                 }).toList();
     }
 
+    @Cacheable(value = "userList")
     public List<UserResponseDTO> getUserList() {
         log.info("Fetching all users");
-        List<UserResponseDTO>  userList =loginRepository.getUserList();
+        List<UserResponseDTO> userList = loginRepository.getUserList();
 
-        List<EmployeeDTO> employeeList = masterClient.getEmployeeList(xApiKey);
-
-        Map<Long, EmployeeDTO> employeeMap = employeeList.stream()
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
+        Map<Long, EmployeeDTO> employeeMap = trainingService.getLongEmployeeDTOMap();
 
         // Set employee details into user response
         for (UserResponseDTO user : userList) {
@@ -89,6 +98,7 @@ public class AdminService {
     }
 
 
+    @CacheEvict(value = "userList", allEntries = true)
     @Transactional
     public UserResponseDTO addNewUser(UserResponseDTO dto, String username) {
 
@@ -139,6 +149,7 @@ public class AdminService {
         }
     }
 
+    @CacheEvict(value = "userList", allEntries = true)
     @Transactional
     public UserResponseDTO updateUser(UserResponseDTO dto, String username) {
 
@@ -187,9 +198,10 @@ public class AdminService {
         }
     }
 
-    @Transactional
+
+    @Cacheable(value = "formModuleListByRole", key = "#FormRoleId")
     public List<FormModuleDto> formModuleList(Long FormRoleId) throws Exception {
-        log.info(" Inside formModuleList " );
+        log.info(" Inside formModuleList ");
         try {
             List<FormModuleDto> formModuleDtoList = new ArrayList<FormModuleDto>();
             List<FormModule> formModuleList = formModuleRepository.findDistinctFormModulesByRoleId(FormRoleId);
@@ -209,32 +221,32 @@ public class AdminService {
 
             return formModuleDtoList;
         } catch (Exception e) {
-            log.error(" Inside formModuleList ", e );
+            log.error(" Inside formModuleList ", e);
 
             return new ArrayList<FormModuleDto>();
         }
     }
 
 
-    @Transactional
+    @Cacheable(value = "formModuleList")
     public List<FormModuleDto> getformModulelist() throws Exception {
-        log.info( " AdminServiceImpl Inside method getformModulelist " );
+        log.info(" AdminServiceImpl Inside method getformModulelist ");
         List<FormModuleDto> FMlist = new ArrayList<FormModuleDto>();
         try {
 
-            List<Object[]>  list =formModuleRepository.getformModulelist();
-            if(list!=null) {
-                for(Object[] O:list) {
+            List<Object[]> list = formModuleRepository.getformModulelist();
+            if (list != null) {
+                for (Object[] O : list) {
                     FormModuleDto dto = new FormModuleDto();
                     dto.setFormModuleId(Long.parseLong(O[0].toString()));
                     dto.setFormModuleName(O[1].toString());
                     FMlist.add(dto);
                 }
-            }else {
+            } else {
                 FMlist = null;
             }
         } catch (Exception e) {
-            log.error(" error in AdminServiceImpl Inside method getformModulelist "+ e.getMessage());
+            log.error(" error in AdminServiceImpl Inside method getformModulelist " + e.getMessage());
             e.printStackTrace();
         }
 
@@ -242,9 +254,9 @@ public class AdminService {
     }
 
 
-    @Transactional
+    @Cacheable(value = "formModuleDetailListByRole", key = "#FormRoleId")
     public List<FormDetailDto> formModuleDetailList(Long FormRoleId) throws Exception {
-        log.info(" Inside formModuleDetailList " );
+        log.info(" Inside formModuleDetailList ");
         try {
             List<FormDetailDto> formDetailDtoList = new ArrayList<FormDetailDto>();
             List<FormDetail> formDetailList = formDetailRepository.findDistinctFormModulesDetailsByRoleId(FormRoleId);
@@ -268,68 +280,70 @@ public class AdminService {
 
             return formDetailDtoList;
         } catch (Exception e) {
-            log.error(" Inside formModuleDetailList ", e );
+            log.error(" Inside formModuleDetailList ", e);
             e.printStackTrace();
             return new ArrayList<FormDetailDto>();
         }
     }
 
 
-    @Transactional
+    @Cacheable(value = "formRoleAccessListByRole", key = "#roleId + '_' + #formModuleId")
     public List<FormRoleAccessDto> getformRoleAccessList(String roleId, String formModuleId) {
-        log.info( " AdminServiceImpl Inside method getformRoleAccessList");
+        log.info(" AdminServiceImpl Inside method getformRoleAccessList");
         try {
 
-            List<Object[]> list = formRoleAccessRepository.getformroleAccessList( roleId, formModuleId);
-            return  list.stream().map(row ->{
+            List<Object[]> list = formRoleAccessRepository.getformroleAccessList(roleId, formModuleId);
+            return list.stream().map(row -> {
                 return FormRoleAccessDto.builder()
-                        .formRoleAccessId(row[0]!=null?Long.parseLong(row[0].toString()):0L)
-                        .formDetailId(row[1]!=null?Long.parseLong(row[1].toString()):0L)
-                        .formModuleId(row[2]!=null?Long.parseLong(row[2].toString()):0L)
-                        .formDispName(row[3]!=null?row[3].toString():null)
-                        .isActive(row[4]!=null && row[4].toString().equalsIgnoreCase("1"))
-                        .forView(row[5]!=null && row[5].toString().equalsIgnoreCase("Y"))
-                        .forAdd(row[6]!=null && row[6].toString().equalsIgnoreCase("Y"))
-                        .forEdit(row[7]!=null && row[7].toString().equalsIgnoreCase("Y"))
-                        .forDelete(row[8]!=null && row[8].toString().equalsIgnoreCase("Y"))
-                        .roleId(row[9]!=null?Long.parseLong(row[9].toString()):0)
+                        .formRoleAccessId(row[0] != null ? Long.parseLong(row[0].toString()) : 0L)
+                        .formDetailId(row[1] != null ? Long.parseLong(row[1].toString()) : 0L)
+                        .formModuleId(row[2] != null ? Long.parseLong(row[2].toString()) : 0L)
+                        .formDispName(row[3] != null ? row[3].toString() : null)
+                        .isActive(row[4] != null && row[4].toString().equalsIgnoreCase("1"))
+                        .forView(row[5] != null && row[5].toString().equalsIgnoreCase("Y"))
+                        .forAdd(row[6] != null && row[6].toString().equalsIgnoreCase("Y"))
+                        .forEdit(row[7] != null && row[7].toString().equalsIgnoreCase("Y"))
+                        .forDelete(row[8] != null && row[8].toString().equalsIgnoreCase("Y"))
+                        .roleId(row[9] != null ? Long.parseLong(row[9].toString()) : 0)
                         .build();
             }).collect(Collectors.toList());
         } catch (Exception e) {
-            log.error(" error in AdminServiceImpl Inside method getformRoleAccessList "+ e.getMessage());
+            log.error(" error in AdminServiceImpl Inside method getformRoleAccessList " + e.getMessage());
             e.printStackTrace();
             return List.of();
         }
-}
+    }
 
+    @CacheEvict(value = {"formRoleAccessListByRole", "formModuleListByRole",
+            "formModuleDetailListByRole"}, allEntries = true)
     @Transactional
     public String updateformroleaccess(FormRoleAccessDto accessDto, String username) {
-        log.info( " AdminServiceImpl Inside method updateformroleaccess");
+        log.info(" AdminServiceImpl Inside method updateformroleaccess");
         String updateResult = null;
         try {
-            long result = formRoleAccessRepository.countByFormRoleIdAndDetailId(String.valueOf(accessDto.getRoleId()),String.valueOf(accessDto.getFormDetailId()));
-            if(result == 0) {
+            long result = formRoleAccessRepository.countByFormRoleIdAndDetailId(String.valueOf(accessDto.getRoleId()), String.valueOf(accessDto.getFormDetailId()));
+            if (result == 0) {
                 FormRoleAccess formrole = new FormRoleAccess();
                 formrole.setRoleId(accessDto.getRoleId());
                 formrole.setFormDetailId(accessDto.getFormDetailId());
                 formrole.setIsActive(1);
-                formrole.setForView(String.valueOf(accessDto.isForView()).equalsIgnoreCase("true")?"Y":"N");
-                formrole.setForAdd(String.valueOf(accessDto.isForAdd()).equalsIgnoreCase("true")?"Y":"N");
-                formrole.setForEdit(String.valueOf(accessDto.isForEdit()).equalsIgnoreCase("true")?"Y":"N");
-                formrole.setForDelete(String.valueOf(accessDto.isForDelete()).equalsIgnoreCase("true")?"Y":"N");
+                formrole.setForView(String.valueOf(accessDto.isForView()).equalsIgnoreCase("true") ? "Y" : "N");
+                formrole.setForAdd(String.valueOf(accessDto.isForAdd()).equalsIgnoreCase("true") ? "Y" : "N");
+                formrole.setForEdit(String.valueOf(accessDto.isForEdit()).equalsIgnoreCase("true") ? "Y" : "N");
+                formrole.setForDelete(String.valueOf(accessDto.isForDelete()).equalsIgnoreCase("true") ? "Y" : "N");
                 formrole.setCreatedBy(username);
                 formrole.setCreatedDate(LocalDateTime.now());
                 formRoleAccessRepository.save(formrole);
                 updateResult = String.valueOf(formrole.getFormRoleAccessId());
-            }else {
+            } else {
                 Optional<FormRoleAccess> formRoleAccess = formRoleAccessRepository.findById(accessDto.getFormRoleAccessId());
-                if(formRoleAccess.isPresent()){
+                if (formRoleAccess.isPresent()) {
                     FormRoleAccess roleAccess = formRoleAccess.get();
 //                    roleAccess.setIsActive(String.valueOf(accessDto.isActive()).equalsIgnoreCase("true") ? 1 : 0);
-                    roleAccess.setForView(String.valueOf(accessDto.isForView()).equalsIgnoreCase("true")?"Y":"N");
-                    roleAccess.setForAdd(String.valueOf(accessDto.isForAdd()).equalsIgnoreCase("true")?"Y":"N");
-                    roleAccess.setForEdit(String.valueOf(accessDto.isForEdit()).equalsIgnoreCase("true")?"Y":"N");
-                    roleAccess.setForDelete(String.valueOf(accessDto.isForDelete()).equalsIgnoreCase("true")?"Y":"N");
+                    roleAccess.setForView(String.valueOf(accessDto.isForView()).equalsIgnoreCase("true") ? "Y" : "N");
+                    roleAccess.setForAdd(String.valueOf(accessDto.isForAdd()).equalsIgnoreCase("true") ? "Y" : "N");
+                    roleAccess.setForEdit(String.valueOf(accessDto.isForEdit()).equalsIgnoreCase("true") ? "Y" : "N");
+                    roleAccess.setForDelete(String.valueOf(accessDto.isForDelete()).equalsIgnoreCase("true") ? "Y" : "N");
                     roleAccess.setModifiedBy(username);
                     roleAccess.setModifiedDate(LocalDateTime.now());
                     formRoleAccessRepository.save(roleAccess);
@@ -338,7 +352,7 @@ public class AdminService {
             }
             return updateResult;
         } catch (Exception e) {
-            log.error(" error in AdminServiceImpl Inside method updateformroleaccess "+ e.getMessage());
+            log.error(" error in AdminServiceImpl Inside method updateformroleaccess " + e.getMessage());
             e.printStackTrace();
             return "0";
         }
@@ -346,7 +360,7 @@ public class AdminService {
 
     public UserResponseDTO getUserById(Long loginId) {
 
-        Login login = loginRepository.findById(loginId).orElseThrow(()-> new NotFoundException("Login data not found"));
+        Login login = loginRepository.findById(loginId).orElseThrow(() -> new NotFoundException("Login data not found"));
         RoleSecurity roleSecurity = login.getRoleSecurity().stream().findAny().get();
         List<EmployeeDTO> employeeDTO = masterClient.getEmployee(xApiKey, login.getEmpId());
 
@@ -359,6 +373,71 @@ public class AdminService {
             return loginRepository.existsByUsernameAndIsActive(username, 1);
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    public Integer getNotificationCount(String username) {
+        Login login = loginRepository.findByUsernameAndIsActive(username, 1);
+        int count = 0;
+        try {
+            count = notificationRepository.getNotificationCount(login.getEmpId());
+        } catch (Exception e) {
+            log.error("AuditServiceImpl Inside method getNotificationCount(){}", String.valueOf(e));
+        }
+        return count;
+    }
+
+    @Cacheable(value = "notificationList", key = "#username")
+    public List<NotificationDTO> getNotificationList(String username) {
+        log.info("Inside method getNotificationList ");
+        Login login = loginRepository.findByUsernameAndIsActive(username, 1);
+
+        List<EmployeeDTO> empData = masterClient.getEmployee(xApiKey, login.getEmpId());
+        EmployeeDTO eDto = !empData.isEmpty() ? empData.get(0) : new EmployeeDTO();
+
+        List<Notification> notificationList = notificationRepository.getNotificationList(login.getEmpId());
+        return notificationList.stream()
+                .map(data -> {
+
+                    return NotificationDTO.builder()
+                            .notificationId(data.getNotificationId())
+                            .empName(eDto.getEmpName())
+                            .empDesig(eDto.getEmpDesigCode())
+                            .notificationMessage(data.getNotificationMessage())
+                            .notificationDate(data.getNotificationDate())
+                            .notificationUrl(data.getNotificationUrl())
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    @CacheEvict(value = "notificationList", allEntries = true)
+    public long updateNotification(String username, String notificationId) {
+        log.info("Inside method updateNotification ");
+        try {
+            Optional<Notification> notifOptional = notificationRepository.findById(Long.parseLong(notificationId));
+
+            if (notifOptional.isPresent()) {
+                // Get the notification object from the Optional
+                Notification notification = notifOptional.get();
+
+                // Update the necessary fields
+                notification.setModifiedBy(username);
+                notification.setModifiedDate(LocalDateTime.now());
+                notification.setIsActive(0);
+
+                // Save the updated entity back to the repository
+                Notification updatedNotification = notificationRepository.save(notification);
+
+                // Return the ID of the updated notification
+                return updatedNotification.getNotificationId();
+            } else {
+                log.error("Notification with ID {} not found.", notificationId);
+                throw new Exception("Notification not found");
+            }
+        } catch (Exception e) {
+            log.error("Error in updateNotification: {}", e.getMessage(), e);
+            return 0;
         }
     }
 }

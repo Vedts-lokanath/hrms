@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,9 +35,9 @@ public class TrainingController {
         this.trainingService = trainingService;
     }
 
-    @GetMapping(value = "/agency")
-    public ResponseEntity<ApiResponse> getAllAgencies() {
-        List<OrganizerIdDTO> list = trainingService.getAllAgencies();
+    @GetMapping(value = "/organizer")
+    public ResponseEntity<ApiResponse> getAllOrganizers() {
+        List<OrganizerDTO> list = trainingService.getAllAgencies();
 
         return ResponseEntity.ok(
                 new ApiResponse(true, "Organizer list fetched", list)
@@ -60,19 +61,36 @@ public class TrainingController {
         );
     }
 
-    @GetMapping(value = "/calendar-file/{id}")
-    public ResponseEntity<Resource> downloadCalendarFile(@PathVariable Long id, @RequestHeader String username) {
+    @GetMapping(value = "/calendar-file/{id}/{fileType}")
+    public ResponseEntity<Resource> downloadCalendarFile(@PathVariable Long id, @PathVariable String fileType, @RequestHeader String username) {
         try {
-            CalendarDTO dto = trainingService.getCalendarById(id, username)
-                    .orElseThrow(()-> new NotFoundException("Calendar file not found"));
 
-            Path filePath = Paths.get(appStorage, "Calendar", dto.getYear(), dto.getFileName());
+            if(fileType.isEmpty()){
+                throw new NotFoundException("Filetype not found while download calendar files.");
+            }
+            if(id == null){
+                throw new NotFoundException("Calendar Id can not be null");
+            }
+
+            CalendarDTO dto = trainingService.getCalendarById(id, username)
+                    .orElseThrow(()-> new NotFoundException("Calendar data not found"));
+
+            OrganizerDTO organizerDTO = trainingService.getOrganizerById(dto.getOrganizerId())
+                    .orElseThrow(()-> new NotFoundException("Organizer data not found"));
+
+            Path filePath = Paths.get(appStorage, "Calendar", dto.getYear(), organizerDTO.getOrganizer().trim());
+
+            if ("CF".equalsIgnoreCase(fileType)){
+                filePath = filePath.resolve(dto.getCalendarFileName());
+            }else{
+                filePath = filePath.resolve(dto.getCoveringLetter());
+            }
 
             if (!Files.exists(filePath)) {
                 return ResponseEntity.notFound().build();
             }
 
-            String fileName = dto.getFileName();
+            String fileName = dto.getCalendarFileName();
             String contentType = Files.probeContentType(filePath);
 
             // Fallback content type
@@ -93,44 +111,44 @@ public class TrainingController {
         }
     }
 
-    @PostMapping(value = "/add-program")
-    public ResponseEntity<ApiResponse> addProgramData(@Valid @RequestBody ProgramDTO dto, @RequestHeader String username) throws IOException {
-        ProgramDTO data = trainingService.addProgramData(dto,username);
+    @PostMapping(value = "/add-course")
+    public ResponseEntity<ApiResponse> addCourseData(@Valid @RequestBody CourseDTO dto, @RequestHeader String username) throws IOException {
+        CourseDTO data = trainingService.addCourseData(dto,username);
         return ResponseEntity.ok(
-                new ApiResponse(true, "Program data added successfully", data)
+                new ApiResponse(true, "Course data added successfully", data)
         );
     }
 
-    @PutMapping(value = "/edit-program")
-    public ResponseEntity<ApiResponse> editProgramData(@Valid @RequestBody ProgramDTO dto, @RequestHeader String username) throws IOException {
-        Optional<ProgramDTO> data = trainingService.editProgramData(dto,username);
+    @PutMapping(value = "/edit-course")
+    public ResponseEntity<ApiResponse> editCourseData(@Valid @RequestBody CourseDTO dto, @RequestHeader String username) throws IOException {
+        Optional<CourseDTO> data = trainingService.editCourseData(dto,username);
         return ResponseEntity.ok(
-                new ApiResponse(true, "Program data edited successfully", data)
+                new ApiResponse(true, "Course data edited successfully", data)
         );
     }
 
     @PostMapping(value = "/add-organizer")
-    public ResponseEntity<ApiResponse> addOrganizer(@Valid @RequestBody OrganizerIdDTO dto, @RequestHeader String username) throws IOException {
-        OrganizerIdDTO data = trainingService.addOrganizer(dto,username);
+    public ResponseEntity<ApiResponse> addOrganizer(@Valid @RequestBody OrganizerDTO dto, @RequestHeader String username) throws IOException {
+        OrganizerDTO data = trainingService.addOrganizer(dto,username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Organizer data added successfully", data)
         );
     }
 
     @PutMapping(value = "/edit-organizer")
-    public ResponseEntity<ApiResponse> editOrganizer(@Valid @RequestBody OrganizerIdDTO dto, @RequestHeader String username) throws IOException {
-        Optional<OrganizerIdDTO> data = trainingService.editOrganizer(dto,username);
+    public ResponseEntity<ApiResponse> editOrganizer(@Valid @RequestBody OrganizerDTO dto, @RequestHeader String username) throws IOException {
+        Optional<OrganizerDTO> data = trainingService.editOrganizer(dto,username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Organizer data edited successfully", data)
         );
     }
 
-    @GetMapping(value = "/program")
-    public ResponseEntity<ApiResponse> getProgramList(@RequestHeader String username) {
-        List<ProgramDTO> list = trainingService.getProgramList(username);
+    @GetMapping(value = "/course")
+    public ResponseEntity<ApiResponse> getCourseList(@RequestParam Long orgId, @RequestHeader String username) {
+        List<CourseDTO> list = trainingService.getCourseList(orgId,username);
 
         return ResponseEntity.ok(
-                new ApiResponse(true, "Program list fetched", list)
+                new ApiResponse(true, "Course list fetched", list)
         );
     }
 
@@ -143,8 +161,8 @@ public class TrainingController {
     }
 
     @GetMapping(value = "/requisition")
-    public ResponseEntity<ApiResponse> getRequisitionList(@RequestHeader String username) {
-        List<RequisitionDTO> list = trainingService.getRequisitionList(username);
+    public ResponseEntity<ApiResponse> getRequisitionList(@RequestParam Long empId, @RequestParam String roleName, @RequestHeader String username) {
+        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName, username);
 
         return ResponseEntity.ok(
                 new ApiResponse(true, "Requisition list fetched", list)
@@ -164,7 +182,8 @@ public class TrainingController {
     public ResponseEntity<Resource> downloadRequisitionFile(@PathVariable Long id, @PathVariable String file, @RequestHeader String username) {
         try {
 
-            Path filePath = Paths.get(appStorage, "Requisition", file);
+            RequisitionDTO requisitionDTO = trainingService.getRequisitionById(id, username);
+            Path filePath = Paths.get(appStorage, "Requisition", requisitionDTO.getRequisitionNumber().replace("/","_"), file);
 
             if (!Files.exists(filePath)) {
                 return ResponseEntity.notFound().build();
@@ -207,11 +226,154 @@ public class TrainingController {
     }
 
     @GetMapping(value = "/feedback-list")
-    public ResponseEntity<ApiResponse> getFeedbackList(@RequestHeader String username) {
-        List<FeedbackDTO> list = trainingService.getFeedbackList(username);
+    public ResponseEntity<ApiResponse> getFeedbackList(@RequestParam Long empId, @RequestParam String roleName, @RequestHeader String username) {
+        List<FeedbackDTO> list = trainingService.getFeedbackList(empId,roleName,username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Feedback list fetched successfully", list)
         );
     }
+
+    @GetMapping(value = "/feedback-data/{id}")
+    public ResponseEntity<ApiResponse> getFeedbackById(@PathVariable Long id, @RequestHeader String username) {
+        FeedbackDTO list = trainingService.getFeedbackById(id,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Feedback data fetched successfully", list)
+        );
+    }
+
+    @PutMapping(value = "/update-feedback")
+    public ResponseEntity<ApiResponse> updateFeedback(@Valid @RequestBody FeedbackDTO dto, @RequestHeader String username) throws IOException {
+        Optional<FeedbackDTO> data = trainingService.updateFeedback(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Feedback updated successfully", data)
+        );
+    }
+
+    @PostMapping(value = "/accept-feedback")
+    public ResponseEntity<ApiResponse> acceptFeedback(@RequestBody FeedbackDTO dto, @RequestHeader String username) throws IOException {
+        FeedbackDTO data = trainingService.acceptFeedback(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Feedback accepted successfully", data)
+        );
+    }
+
+    @GetMapping(value = "/feedback-print/{id}")
+    public ResponseEntity<ApiResponse> getFeedbackPrint(@PathVariable Long id, @RequestHeader String username) {
+        FeedbackDTO data = trainingService.getFeedbackPrint(id,username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Feedback print data fetched", data)
+        );
+    }
+
+    @PostMapping(value = "/forward-req")
+    public ResponseEntity<ApiResponse> forwardRequisition(@Valid @RequestBody RequisitionDTO dto, @RequestHeader String username) {
+        RequisitionDTO data = trainingService.forwardRequisition(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Requisition forwarded successfully", data)
+        );
+    }
+
+    @PostMapping(value = "/revoke-req")
+    public ResponseEntity<ApiResponse> revokeRequisition(@Valid @RequestBody RequisitionDTO dto, @RequestHeader String username) {
+        RequisitionDTO data = trainingService.revokeRequisition(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Requisition revoked successfully", data)
+        );
+    }
+
+    @PostMapping(value = "/recommend-req")
+    public ResponseEntity<ApiResponse> recommendRequisition(@Valid @RequestBody RequisitionDTO dto, @RequestHeader String username) {
+        RequisitionDTO data = trainingService.recommendRequisition(dto,username);
+        String message = data.getStatus().equalsIgnoreCase("AR") ? "Requisition recommended successfully" : "Requisition approved successfully";
+        return ResponseEntity.ok(
+                new ApiResponse(true, message, data)
+        );
+    }
+
+    @PostMapping(value = "/return-req")
+    public ResponseEntity<ApiResponse> returnRequisition(@Valid @RequestBody RequisitionDTO dto, @RequestHeader String username) {
+        RequisitionDTO data = trainingService.returnRequisition(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Requisition returned successfully", data)
+        );
+    }
+
+    @GetMapping(value = "/requisition-print/{id}")
+    public ResponseEntity<ApiResponse> getRequisitionPrint(@PathVariable Long id, @RequestHeader String username) {
+        RequisitionDTO data = trainingService.getRequisitionPrint(id,username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Requisition print data fetched", data)
+        );
+    }
+
+    @GetMapping(value = "/req-approval-list")
+    public ResponseEntity<ApiResponse> getRequisitionApprovalList(@RequestParam Long empId, @RequestHeader String username) {
+        List<RequisitionDTO> list = trainingService.getRequisitionApprovalList(empId,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Requisition Approval list fetched successfully", list)
+        );
+    }
+
+    @GetMapping(value = "/req-transaction/{reqId}")
+    public ResponseEntity<ApiResponse> getRequisitionTransaction(@PathVariable Long reqId, @RequestHeader String username) {
+        List<RequisitionTransactionDTO> list = trainingService.getRequisitionTransaction(reqId,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Requisition transaction fetched successfully", list)
+        );
+    }
+
+    @PostMapping(value = "/add-evaluation")
+    public ResponseEntity<ApiResponse> addEvaluation(@RequestBody EvaluationRequestDTO dto, @RequestHeader String username) {
+        EvaluationRequestDTO data = trainingService.addEvaluation(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Evaluation added successfully", data)
+        );
+    }
+
+    @GetMapping(value = "/evaluation")
+    public ResponseEntity<ApiResponse> getEvaluationList(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate, @RequestHeader String username) {
+        List<EvaluationRequestDTO> list = trainingService.getEvaluationList(fromDate, toDate, username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Evaluation list fetched", list)
+        );
+    }
+
+    @GetMapping(value = "/evaluation-print/{id}")
+    public ResponseEntity<ApiResponse> getEvaluationPrint(@PathVariable Long id, @RequestHeader String username) {
+        EvaluationRequestDTO data = trainingService.getEvaluationPrint(id,username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Evaluation print data fetched", data)
+        );
+    }
+
+    @GetMapping(value = "/eligibility")
+    public ResponseEntity<ApiResponse> getEligibilityList(@RequestHeader String username) {
+        List<EligibilityDTO> list = trainingService.getEligibilityList(username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Eligibility list fetched", list)
+        );
+    }
+
+
+    @PostMapping(value = "/add-eligible")
+    public ResponseEntity<ApiResponse> addEligibleData(@Valid @RequestBody EligibilityDTO dto, @RequestHeader String username) {
+        EligibilityDTO data = trainingService.addEligibleData(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Eligibility data added successfully", data)
+        );
+    }
+
+    @PutMapping(value = "/update-eligible")
+    public ResponseEntity<ApiResponse> updateEligibleData(@Valid @RequestBody EligibilityDTO dto, @RequestHeader String username) {
+        Optional<EligibilityDTO> data = trainingService.updateEligibleData(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Eligibility data updated successfully", data)
+        );
+    }
+
 
 }

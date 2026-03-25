@@ -14,6 +14,7 @@ public class FeedbackDTO {
 
     private Long feedbackId;
     private Long requisitionId;
+    private String requisitionNumber;
     private LocalDate feedbackDate;
     private Long participantId;
     private String facultyName;
@@ -29,12 +30,18 @@ public class FeedbackDTO {
     private String seminarVenue;
     private Integer isActive;
 
-    private String programName;
+    private String courseName;
     private String organizer;
     private LocalDate fromDate;
     private LocalDate toDate;
     private Integer programDuration;
     private String participantName;
+    private String designation;
     private String divisionName;
+
+    private String isAccepted;
+    private Long acceptedBy;
+    private String acceptedByName;
+    private LocalDateTime acceptedDate;
 
 }

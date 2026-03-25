@@ -1,9 +1,7 @@
 package com.vts.hrms.dto;
 
-import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Past;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -11,19 +9,27 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
-public class ProgramDTO implements Serializable {
+public class CourseDTO implements Serializable {
 
-    private Long programId;
+    private Long courseId;
+    private String courseCode;
 
-    @NotBlank(message = "Program Name is required")
-    private String programName;
+    @NotBlank(message = "Course Name is required")
+    private String courseName;
+
+    @NotNull(message = "Eligibility is required")
+    private Long eligibilityId;
+
+    private String eligibilityName;
 
     @NotNull(message = "Organizer is required")
     private Long organizerId;
+
     private String organizer;
 
-    @NotNull(message = "Registration Fee is required")
-    private BigDecimal registrationFee;
+    private BigDecimal offlineRegistrationFee;
+
+    private BigDecimal onlineRegistrationFee;
 
     @NotBlank(message = "Venue is required")
     private String venue;
