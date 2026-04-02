@@ -105,12 +105,12 @@ public class AdminService {
         log.info("Adding new user for username: {}", dto.getUsername());
 
         try {
-            String password = "Vts@1234";
+//            String password = "Vts@1234";
+            String password = "Cair@123";
 
             // 1. Fetch Role
             RoleSecurity role = roleSecurityRepository.findById(dto.getRoleId())
-                    .orElseThrow(() -> new RuntimeException(
-                            "Role not found for roleId: " + dto.getRoleId()));
+                    .orElseThrow(() -> new RuntimeException("Role not found for roleId: " + dto.getRoleId()));
 
             // 2. Create Login Object
             Login login = new Login();

@@ -34,6 +34,8 @@ public class CourseDTO implements Serializable {
     @NotBlank(message = "Venue is required")
     private String venue;
 
+    private Long noOfNomination;
+
     @NotNull(message = "From date is required")
     private LocalDate fromDate;
 

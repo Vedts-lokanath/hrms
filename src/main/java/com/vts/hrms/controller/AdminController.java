@@ -60,11 +60,9 @@ public class AdminController {
     }
 
     @PostMapping(value = "/add-user")
-    public ResponseEntity<ApiResponse> addNewUser(@RequestBody UserResponseDTO dto, @RequestHeader String username) {
+    public ResponseEntity<UserResponseDTO> addNewUser(@RequestBody UserResponseDTO dto, @RequestHeader String username) {
         UserResponseDTO saved = adminService.addNewUser(dto, username);
-        return ResponseEntity.ok(
-                new ApiResponse(true, "User added successfully", saved)
-        );
+        return ResponseEntity.ok(saved);
     }
 
     @PatchMapping(value = "/update-user/{loginId}")
