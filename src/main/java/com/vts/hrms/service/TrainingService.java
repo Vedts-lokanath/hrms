@@ -66,9 +66,13 @@ public class TrainingService {
     private final EligibilityRepository eligibilityRepository;
     private final CourseTypeRepository courseTypeRepository;
     private final LoginRepository loginRepository;
+    private final CepRepository cepRepository;
+    private final CepMapper cepMapper;
+    private final DistributionRepository distributionRepository;
+    private final DistributionMapper distributionMapper;
 
 
-    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, OrganizerMapper organizerMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, CourseMapper courseMapper, CourseRepository courseRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository, FeedbackMapper feedbackMapper, FeedbackRepository feedbackRepository, RequisitionTransactionRepository transactionRepository, MasterCacheService masterCacheService, NotificationRepository notificationRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, RequisitionSequenceRepository sequenceRepository, EvaluationRepository evaluationRepository, EligibilityMapper eligibilityMapper, EligibilityRepository eligibilityRepository, CourseTypeRepository courseTypeRepository, LoginRepository loginRepository) {
+    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, OrganizerMapper organizerMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, CourseMapper courseMapper, CourseRepository courseRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository, FeedbackMapper feedbackMapper, FeedbackRepository feedbackRepository, RequisitionTransactionRepository transactionRepository, MasterCacheService masterCacheService, NotificationRepository notificationRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, RequisitionSequenceRepository sequenceRepository, EvaluationRepository evaluationRepository, EligibilityMapper eligibilityMapper, EligibilityRepository eligibilityRepository, CourseTypeRepository courseTypeRepository, LoginRepository loginRepository, CepRepository cepRepository, CepMapper cepMapper, DistributionRepository distributionRepository, DistributionMapper distributionMapper) {
         this.masterClient = masterClient;
         this.organizerRepository = organizerRepository;
         this.organizerMapper = organizerMapper;
@@ -90,6 +94,10 @@ public class TrainingService {
         this.eligibilityRepository = eligibilityRepository;
         this.courseTypeRepository = courseTypeRepository;
         this.loginRepository = loginRepository;
+        this.cepRepository = cepRepository;
+        this.cepMapper = cepMapper;
+        this.distributionRepository = distributionRepository;
+        this.distributionMapper = distributionMapper;
     }
 
     @Transactional(readOnly = true)
@@ -1517,4 +1525,142 @@ public class TrainingService {
         notificationRepository.save(notification);
     }
 
+    public List<CepDTO> getAllCepData(String username) {
+        log.info("Request to fetch CEP list by {}", username);
+
+        List<Cep> cepList=cepRepository.findAllByIsActive(1);
+        List<CepDTO> dtoList= cepMapper.toDto(cepList);
+
+        List<DivisionDTO> Divisionlist=masterClient.getDivisionMaster(xApiKey);
+
+        Map<Long,DivisionDTO> divisionDTOMap=Divisionlist.stream()
+                .collect(Collectors.toMap
+                        (DivisionDTO::getDivisionId,Function.identity()));
+          dtoList.forEach(data->{
+              DivisionDTO divisionDTO=divisionDTOMap.get(data.getDivisionId());
+              data.setDivisionCode(divisionDTO.getDivisionCode());
+          });
+        return dtoList;
+    }
+
+    public CepDTO getCepID(Long cepId, String username) {
+
+        log.info("Request to fetch CEP list by {}", username);
+
+        if(cepId == null){
+                throw new NotFoundException("CEP id cannot be null");
+        }
+
+       Cep cep=cepRepository.findById(cepId)
+                 .orElseThrow(() -> new NotFoundException("CEP  not found"));
+
+        return cepMapper.toDto(cep);
+    }
+
+
+    @CacheEvict(value = "CepCache", allEntries = true)
+    @Transactional
+    public CepDTO addCepData(@Valid CepDTO dto, String username) {
+        log.info("Request to add sponsorship by {}", username);
+
+        Cep cep = cepMapper.toEntity(dto);
+
+        cep.setCreatedBy(username);
+        cep.setCreatedDate(LocalDateTime.now());
+        cep.setIsActive(1);
+
+        cep = cepRepository.save(cep);
+
+        return cepMapper.toDto(cep);
+    }
+
+    @CacheEvict(value = "CepCache", allEntries = true)
+    @Transactional
+    public Optional<CepDTO> editCEPData(@Valid CepDTO dto, String username) {
+        log.info("Request to edit program id {} by {}", dto.getCepId(), username);
+
+        return cepRepository.findById(dto.getCepId()).map(existing->{
+             existing.setModifiedBy(username);
+             existing.setModifiedDate(LocalDateTime.now());
+             cepMapper.partialUpdate(existing,dto);
+             return existing;
+        })
+                .map(cepRepository::save)
+                .map(cepMapper::toDto);
+
+    }
+
+    @Cacheable(value = "distributionCache", key = "#username")
+    public List<DistributionDTO> getAllDistributionsData(String username) {
+        log.info("Request to fetch Distribution list by {}", username);
+        List<Distribution> list=distributionRepository.findAllByIsActive(1);
+        List<DistributionDTO> dtoList=distributionMapper.toDto(list);
+
+        List<EmployeeDTO> employeeDTOList = masterClient.getEmployeeMasterList(xApiKey);
+        List<ProjectMasterDTO> projectMasterDTOS=masterClient.getProjectMasterList(xApiKey);
+
+        Map<Long,EmployeeDTO> employeeDTOMap=employeeDTOList.stream()
+                .collect(Collectors.toMap(EmployeeDTO::getEmpId,Function.identity()));
+
+        Map<Long,ProjectMasterDTO> projectMasterDTOMap=projectMasterDTOS.stream()
+                .collect(Collectors.toMap(ProjectMasterDTO::getProjectId,Function.identity()));
+
+        dtoList.forEach(data->{
+
+            ProjectMasterDTO projectMasterDTO = projectMasterDTOMap.get(data.getProjectId());
+            EmployeeDTO employeeDTO = employeeDTOMap.get(data.getEmpId());
+            EmployeeDTO aoEmpDto=employeeDTOMap.get(data.getAoEmpId());
+            EmployeeDTO roEmpDto=employeeDTOMap.get(data.getRoEmpId());
+
+            data.setProjectCode(projectMasterDTO.getProjectCode());
+            data.setEmployeeName(employeeDTO.getEmpName());
+            data.setAoOfficerName(aoEmpDto.getEmpName());
+            data.setRoOfficerName(roEmpDto.getEmpName());
+        });
+
+      return dtoList;
+    }
+
+    public DistributionDTO getDistributionByID(Long distributionId, String username) {
+        log.info("Request to fetch Distributions list by {}", username);
+
+        if (distributionId == null) {
+            throw new NotFoundException("Distribution id cannot be null");
+        }
+        Distribution distribution = distributionRepository.findById(distributionId)
+                .orElseThrow(() -> new NotFoundException("Distribution id  not found"));
+
+        return distributionMapper.toDto(distribution);
+    }
+
+    @CacheEvict(value = "distributionCache", allEntries = true)
+    @Transactional
+    public DistributionDTO addDistributionData(@Valid DistributionDTO dto, String username) {
+        log.info("Request to add Distribution by {}", username);
+
+        Distribution distribution=distributionMapper.toEntity(dto);
+
+        distribution.setDistributionDate(LocalDate.now());
+        distribution.setCreatedBy(username);
+        distribution.setCreatedDate(LocalDateTime.now());
+        distribution.setIsActive(1);
+
+          distribution=distributionRepository.save(distribution);
+          return distributionMapper.toDto(distribution);
+    }
+
+    @CacheEvict(value = "distributionCache", allEntries = true)
+    public Optional<DistributionDTO> editDistributionData(@Valid DistributionDTO dto, String username) {
+        log.info("Request to edit distribution id {} by {}", dto.getDistributionId(), username);
+
+        return distributionRepository.findById(dto.getDistributionId())
+                 .map(ex->{
+                     ex.setModifiedBy(username);
+                     ex.setModifiedDate(LocalDateTime.now());
+                     distributionMapper.partialUpdate(ex,dto);
+                     return ex;
+                 })
+                 .map(distributionRepository::save)
+                 .map(distributionMapper::toDto);
+    }
 }

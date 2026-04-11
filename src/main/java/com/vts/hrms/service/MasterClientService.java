@@ -4,6 +4,7 @@ import com.vts.hrms.auth.AuthenticationRequest;
 import com.vts.hrms.dto.DesignationDTO;
 import com.vts.hrms.dto.DivisionDTO;
 import com.vts.hrms.dto.EmployeeDTO;
+import com.vts.hrms.dto.ProjectMasterDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -31,4 +32,7 @@ public interface MasterClientService {
 
     @RequestMapping(value = "/getAuthenticate", method = RequestMethod.POST)
     ResponseEntity<String> getAuthenticate(@RequestBody AuthenticationRequest authenticationRequest);
+
+    @GetMapping("/getProjectMaster")
+    List<ProjectMasterDTO> getProjectMasterList(@RequestHeader("X-API-KEY") String apiKey);
 }

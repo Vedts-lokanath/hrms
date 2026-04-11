@@ -173,4 +173,9 @@ public class MasterService {
                 .map(signRoleAuthorityRepository::save)
                 .map(signRoleAuthorityMapper::toDto);
     }
+
+    public List<ProjectMasterDTO> getProjectMasterList(String username) {
+        log.info("Request get project list by {} ", username);
+        return masterClient.getProjectMasterList(xApiKey);
+    }
 }

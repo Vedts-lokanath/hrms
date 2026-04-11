@@ -129,4 +129,13 @@ public class MasterController {
         );
     }
 
+    @GetMapping(value = "/project")
+    public ResponseEntity<ApiResponse> getProjectMasterList(@RequestHeader String username) {
+        List<ProjectMasterDTO> list = masterService.getProjectMasterList(username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Project master list fetched", list)
+        );
+    }
+
 }

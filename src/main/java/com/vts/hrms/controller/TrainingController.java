@@ -463,5 +463,83 @@ public class TrainingController {
         );
     }
 
+    @GetMapping(value = "/cep")
+    public ResponseEntity<ApiResponse> getCepList(@RequestHeader String username)
+    {
+        List<CepDTO> list=trainingService.getAllCepData(username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "CEP list fetched", list)
+        );
+    }
+
+    @GetMapping(value = "cepById/{cepId}")
+    public ResponseEntity<ApiResponse> getCepListBYID(@PathVariable Long cepId, @RequestHeader String username) {
+        CepDTO list = trainingService.getCepID(cepId,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "CEP data fetched successfully", list)
+        );
+    }
+
+    @PostMapping(value = "/add-CEP")
+    public ResponseEntity<ApiResponse> addCepData(
+            @Valid @RequestBody CepDTO dto,
+            @RequestHeader String username)
+    {
+        CepDTO data = trainingService.addCepData(dto, username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "CEP data added successfully", data)
+        );
+    }
+
+    @PutMapping(value = "/Edit-cep")
+    public ResponseEntity<ApiResponse> editCepData(@Valid @RequestBody CepDTO dto, @RequestHeader String Username )
+    {
+        Optional<CepDTO> list=trainingService.editCEPData(dto, Username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "CEP data Updated  successfully", list)
+        );
+    }
+
+
+    @GetMapping(value = "/distribution")
+    public ResponseEntity<ApiResponse> getHrDistribution(@RequestHeader String username)
+    {
+        List<DistributionDTO> list=trainingService.getAllDistributionsData(username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Distribution list fetched", list)
+        );
+    }
+
+    @GetMapping(value = "distributionById/{id}")
+    public ResponseEntity<ApiResponse> GetDistributionByID(@PathVariable Long distributionId, @RequestHeader String username) {
+        DistributionDTO list = trainingService.getDistributionByID(distributionId,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Distribution data fetched successfully", list)
+        );
+    }
+
+    @PostMapping(value = "/add-distributions")
+    public ResponseEntity<ApiResponse> ADDDistributionDATA(
+            @Valid @RequestBody DistributionDTO dto,
+            @RequestHeader String username)
+    {
+        DistributionDTO data = trainingService.addDistributionData(dto, username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Distributions data added successfully", data)
+        );
+    }
+
+    @PutMapping(value = "/edit-distribution")
+    public ResponseEntity<ApiResponse> editDistributionDatas(@Valid @RequestBody DistributionDTO dto, @RequestHeader String Username )
+    {
+      Optional<DistributionDTO> data=trainingService.editDistributionData(dto,Username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Distribution Updated successfully", data)
+        );
+    }
 
 }
