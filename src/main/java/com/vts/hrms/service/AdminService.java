@@ -358,7 +358,7 @@ public class AdminService {
         }
     }
 
-    public UserResponseDTO getUserById(Long loginId) {
+    public UserResponseDTO getUserById(Long loginId ) {
 
         Login login = loginRepository.findById(loginId).orElseThrow(() -> new NotFoundException("Login data not found"));
         RoleSecurity roleSecurity = login.getRoleSecurity().stream().findAny().get();

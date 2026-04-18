@@ -1,10 +1,7 @@
 package com.vts.hrms.service;
 
 import com.vts.hrms.auth.AuthenticationRequest;
-import com.vts.hrms.dto.DesignationDTO;
-import com.vts.hrms.dto.DivisionDTO;
-import com.vts.hrms.dto.EmployeeDTO;
-import com.vts.hrms.dto.ProjectMasterDTO;
+import com.vts.hrms.dto.*;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,11 +25,20 @@ public interface MasterClientService {
     List<EmployeeDTO> getEmployeeMasterList(@RequestHeader("X-API-KEY") String apiKey);
 
     @GetMapping("/getEmployee")
-    List<EmployeeDTO> getEmployee(@RequestHeader("X-API-KEY") String apiKey, @RequestParam("empId") long empId);
+    List<EmployeeDTO> getEmployee(@RequestHeader("X-API-KEY") String apiKey , @RequestParam("empId") long empId);
 
     @RequestMapping(value = "/getAuthenticate", method = RequestMethod.POST)
     ResponseEntity<String> getAuthenticate(@RequestBody AuthenticationRequest authenticationRequest);
 
     @GetMapping("/getProjectMaster")
     List<ProjectMasterDTO> getProjectMasterList(@RequestHeader("X-API-KEY") String apiKey);
+
+    @GetMapping("/getProjectListByEmpId")
+    List<ProjectEmployeeDto> getProjectListByEmpId(@RequestHeader("X-API-KEY") String apiKey, @RequestParam("empId") long empId);
+
+    @GetMapping(value = "/roleMaster")
+    List<RoleMaster> getRoleMasterList(@RequestHeader(value = "Authorization") String token);
+
+    @PostMapping(value = "/addProjectRoleId")
+    ResponseEntity<String> addProjectRoleIds(@RequestBody ProjectAssignEmpDto dto, @RequestHeader("Authorization") String token, @RequestHeader("username") String username);
 }

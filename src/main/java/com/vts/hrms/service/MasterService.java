@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -177,5 +178,21 @@ public class MasterService {
     public List<ProjectMasterDTO> getProjectMasterList(String username) {
         log.info("Request get project list by {} ", username);
         return masterClient.getProjectMasterList(xApiKey);
+    }
+
+    public List<ProjectEmployeeDto> getProjectListByEmpId(Long empid, String username){
+        log.info("Request getProjectListById {} ", username);
+        return masterClient.getProjectListByEmpId(xApiKey, empid);
+    }
+
+    public List<RoleMaster> getRoleMasterListed(String username,String token) {
+        log.info("Request get roleMaster list by {} ", username);
+        return masterClient.getRoleMasterList(token);
+    }
+
+    public ResponseEntity<String> addProjectsRolesIds(String username, ProjectAssignEmpDto dto, String token) {
+        log.info("Request addProjectsRolesIds {} ", username);
+
+        return masterClient.addProjectRoleIds(dto,token,username);
     }
 }

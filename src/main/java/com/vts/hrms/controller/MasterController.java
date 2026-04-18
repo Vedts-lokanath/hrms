@@ -3,11 +3,10 @@ package com.vts.hrms.controller;
 import com.vts.hrms.dto.*;
 import com.vts.hrms.service.MasterService;
 import com.vts.hrms.util.ApiResponse;
-import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -52,7 +51,6 @@ public class MasterController {
 
 
         List<EmployeeDTO> employeeList = masterService.getEmployeeList();
-
         List<EmployeeDTO> list;
 
 
@@ -136,6 +134,42 @@ public class MasterController {
         return ResponseEntity.ok(
                 new ApiResponse(true, "Project master list fetched", list)
         );
+    }
+
+    @GetMapping(value = "/project-byId")
+    public ResponseEntity<ApiResponse> getProjectListByEmpId(
+            @RequestHeader String username,
+            @RequestParam Long empId) {
+
+        List<ProjectEmployeeDto> list = masterService.getProjectListByEmpId(empId, username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Project list fetched", list)
+        );
+
+    }
+    @GetMapping(value = "/project-role-master")
+    public ResponseEntity<ApiResponse> getProjectRoleMasterList(@RequestHeader String username,@RequestHeader(value = "Authorization") String token) {
+        List<RoleMaster> list = masterService.getRoleMasterListed(username,token);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Role master list fetched", list)
+        );
+    }
+
+    @PostMapping(value = "/add-project-role")
+    public ResponseEntity<ApiResponse> addProjectRoleIds (@RequestHeader String username,@RequestBody ProjectAssignEmpDto dto,
+                                                          @RequestHeader(value = "Authorization") String token)
+    {
+        ResponseEntity<String> response = masterService.addProjectsRolesIds(username, dto, token);
+
+        if (response.getStatusCode().is2xxSuccessful() && "200".equals(response.getBody())) {
+            return ResponseEntity.ok(
+                    new ApiResponse(true, "Project roles assigned successfully", null)
+            );
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse(false, "Failed to assign project roles", null));
+        }
     }
 
 }

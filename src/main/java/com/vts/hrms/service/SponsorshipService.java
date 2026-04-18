@@ -39,6 +39,40 @@ public class SponsorshipService {
     }
 
 
+    private String buildEmployeeName(EmployeeDTO emp, boolean includeDesignation) {
+
+        if (emp == null) return "";
+
+        String title = Optional.ofNullable(emp.getTitle())
+                .filter(t -> !t.isBlank())
+                .orElse(null);
+
+        String salutation = Optional.ofNullable(emp.getSalutation())
+                .filter(s -> !s.isBlank())
+                .orElse(null);
+
+        String name = Optional.ofNullable(emp.getEmpName()).orElse("");
+        String designation = Optional.ofNullable(emp.getEmpDesigName()).orElse("");
+
+        // Priority: Title → Salutation → Nothing
+        String prefix = title != null ? title : (salutation != null ? salutation : "");
+
+        StringBuilder fullName = new StringBuilder();
+
+        if (!prefix.isBlank()) {
+            fullName.append(prefix).append(" ");
+        }
+
+        fullName.append(name);
+
+        if (includeDesignation && !designation.isBlank()) {
+            fullName.append(", ").append(designation);
+        }
+
+        return fullName.toString().trim();
+    }
+
+
     public List<SponsorshipDTO> getAllSponsorshipList(String username) {
 
         log.info("Request to fetch sponsorship list by {}", username);
@@ -54,7 +88,7 @@ public class SponsorshipService {
 
         dtoList.forEach(data->{
             EmployeeDTO employeeDTO = employeeDTOMap.get(data.getEmpId());
-            data.setEmployeeName(employeeDTO.getEmpName() + ", " + employeeDTO.getEmpDesigName());
+            data.setEmployeeName(buildEmployeeName(employeeDTO, true));
         });
 
         return dtoList;

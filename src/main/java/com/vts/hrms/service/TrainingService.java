@@ -1570,7 +1570,6 @@ public class TrainingService {
         cep.setIsActive(1);
 
         cep = cepRepository.save(cep);
-
         return cepMapper.toDto(cep);
     }
 
@@ -1597,25 +1596,25 @@ public class TrainingService {
         List<DistributionDTO> dtoList=distributionMapper.toDto(list);
 
         List<EmployeeDTO> employeeDTOList = masterClient.getEmployeeMasterList(xApiKey);
-        List<ProjectMasterDTO> projectMasterDTOS=masterClient.getProjectMasterList(xApiKey);
+
 
         Map<Long,EmployeeDTO> employeeDTOMap=employeeDTOList.stream()
                 .collect(Collectors.toMap(EmployeeDTO::getEmpId,Function.identity()));
 
-        Map<Long,ProjectMasterDTO> projectMasterDTOMap=projectMasterDTOS.stream()
-                .collect(Collectors.toMap(ProjectMasterDTO::getProjectId,Function.identity()));
 
         dtoList.forEach(data->{
 
-            ProjectMasterDTO projectMasterDTO = projectMasterDTOMap.get(data.getProjectId());
+
             EmployeeDTO employeeDTO = employeeDTOMap.get(data.getEmpId());
             EmployeeDTO aoEmpDto=employeeDTOMap.get(data.getAoEmpId());
             EmployeeDTO roEmpDto=employeeDTOMap.get(data.getRoEmpId());
 
-            data.setProjectCode(projectMasterDTO.getProjectCode());
-            data.setEmployeeName(employeeDTO.getEmpName());
-            data.setAoOfficerName(aoEmpDto.getEmpName());
-            data.setRoOfficerName(roEmpDto.getEmpName());
+            data.setEmployeeName(buildEmployeeName(employeeDTO, true));
+            data.setAoOfficerName(buildEmployeeName(aoEmpDto, true));
+            data.setRoOfficerName(buildEmployeeName(roEmpDto, true));
+
+
+
         });
 
       return dtoList;
