@@ -14,28 +14,23 @@ public class SponsorshipDTO implements Serializable {
 
     @NotNull(message = "Employee Id is required")
     private Long empId;
+    private String empNo;
     private String employeeName;
+    private String empDesigCode;
+    private String desigCadre;
+    private String empDivCode;
 
     @NotBlank(message = "Degree Type is required")
     private String degreeType;
 
     private String delegatedPower;
-
     private String discipline;
-
     private String subject;
-
     private String university;
-
     private String preference;
-
     private String city;
-
     private LocalDate fromDate;
-
     private LocalDate toDate;
-
     private Integer period;
-
     private BigDecimal expenditure;
 }

@@ -2,8 +2,7 @@ package com.vts.hrms.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vts.hrms.dto.EmployeeDTO;
-import com.vts.hrms.dto.RequisitionDTO;
+import com.vts.hrms.dto.*;
 import com.vts.hrms.entity.Course;
 import com.vts.hrms.entity.Organizer;
 import com.vts.hrms.entity.Requisition;
@@ -21,6 +20,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 
 @RequiredArgsConstructor
@@ -40,6 +41,8 @@ public class ReportService {
     private final RequisitionMapper requisitionMapper;
     private final RequisitionRepository requisitionRepository;
     private final MasterCacheService masterCacheService;
+    private final TrainingService trainingService;
+    private final SponsorshipService sponsorshipService;
 
     @Cacheable(value = "getNominalROllList")
     public List<EmployeeDTO> getNominalRollList(String token) {
@@ -88,7 +91,7 @@ public class ReportService {
     }
 
 //    @Cacheable(value = "getCourseTrainingList")
-    public List<RequisitionDTO> getCourseTrainingList() {
+    public List<RequisitionDTO> getCourseTrainingList(String courseType) {
         log.info("Fetching course training data");
 
         Map<Long, EmployeeDTO> employeeMap = masterCacheService.getLongEmployeeDTOMap();
@@ -96,41 +99,79 @@ public class ReportService {
         Map<Long, Course> courseMap = masterCacheService.getCourseMap();
         Map<String, Status> statusMap = masterCacheService.getStatusMap();
 
+        List<CourseTypeDTO> typeDTOList = trainingService.getCourseTypeList("user");
+        Map<Long, CourseTypeDTO> typeDTOMap = typeDTOList.stream()
+                .collect(Collectors.toMap(CourseTypeDTO::getCourseTypeId, Function.identity()));
+
         List<Requisition> list = requisitionRepository.findAllByIsActive(1);
 
-        List<RequisitionDTO> dtoList = requisitionMapper.toDto(list);
+        boolean isTraining = "course".equalsIgnoreCase(courseType);
 
-        dtoList.forEach(dto -> {
-            EmployeeDTO employeeDTO = employeeMap.get(dto.getInitiatingOfficer());
-            Course course = courseMap.get(dto.getCourseId());
-            Organizer organizer = organizerMap.get(course.getOrganizerId());
-            dto.setCourseName(course.getCourseName());
-            dto.setVenue(course.getVenue());
+        return list.stream()
+                .map(requisitionMapper::toDto)
+                .filter(dto -> {
+                    // Pre-fetch the course to determine the type for filtering
+                    Course course = courseMap.get(dto.getCourseId());
+                    if (course == null) return false;
 
-            Status status = statusMap.get(dto.getStatus());
-            dto.setStatusColor(status.getColorCode());
-            dto.setStatusName(status.getStatusName());
+                    CourseTypeDTO typeDTO = typeDTOMap.get(course.getCourseTypeId());
+                    String typeName = (typeDTO != null) ? typeDTO.getCourseType() : "";
 
-            dto.setOfflineRegistrationFee(course.getOfflineRegistrationFee());
-            dto.setOnlineRegistrationFee(course.getOnlineRegistrationFee());
-            if (organizer != null) {
-                dto.setOrganizer(organizer.getOrganizer());
-                dto.setOrganizerContactName(organizer.getContactName());
-                dto.setOrganizerPhoneNo(organizer.getPhoneNo());
-                dto.setOrganizerFaxNo(organizer.getFaxNo());
-                dto.setOrganizerEmail(organizer.getEmail());
-            }
-            if (employeeDTO != null) {
-                dto.setEmpNo(employeeDTO.getEmpNo());
-                dto.setInitiatingOfficerName(buildEmployeeName(employeeDTO, false));
-                dto.setDesigCadre(employeeDTO.getDesigCadre());
-                dto.setEmpDesigName(employeeDTO.getEmpDesigName());
-                dto.setEmpDivCode(employeeDTO.getEmpDivCode());
-                dto.setEmail(employeeDTO.getEmail());
-                dto.setMobileNo(employeeDTO.getMobileNo());
-            }
-        });
-        return dtoList;
+                    // Keep the dto if it matches the criteria
+                    return isTraining ? "Training".equalsIgnoreCase(typeName)
+                            : !"Training".equalsIgnoreCase(typeName);
+                })
+                .peek(dto -> {
+
+                    Course course = courseMap.get(dto.getCourseId());
+                    Organizer organizer = organizerMap.get(course.getOrganizerId());
+                    CourseTypeDTO typeDTO = typeDTOMap.get(course.getCourseTypeId());
+                    EmployeeDTO employeeDTO = employeeMap.get(dto.getInitiatingOfficer());
+                    Status status = statusMap.get(dto.getStatus());
+
+                    dto.setCourseName(course.getCourseName());
+                    dto.setCourseLevel(course.getCourseLevel());
+                    dto.setCourseType(typeDTO.getCourseType());
+                    dto.setVenue(course.getVenue());
+
+                    dto.setStatusColor(status.getColorCode());
+                    dto.setStatusName(status.getStatusName());
+
+                    dto.setOfflineRegistrationFee(course.getOfflineRegistrationFee());
+                    dto.setOnlineRegistrationFee(course.getOnlineRegistrationFee());
+                    if (organizer != null) {
+                        dto.setOrganizer(organizer.getOrganizer());
+                        dto.setOrganizerContactName(organizer.getContactName());
+                        dto.setOrganizerPhoneNo(organizer.getPhoneNo());
+                        dto.setOrganizerFaxNo(organizer.getFaxNo());
+                        dto.setOrganizerEmail(organizer.getEmail());
+                    }
+                    if (employeeDTO != null) {
+                        dto.setEmpNo(employeeDTO.getEmpNo());
+                        dto.setInitiatingOfficerName(buildEmployeeName(employeeDTO, false));
+                        dto.setDesigCadre(employeeDTO.getDesigCadre());
+                        dto.setEmpDesigName(employeeDTO.getEmpDesigName());
+                        dto.setEmpDivCode(employeeDTO.getEmpDivCode());
+                        dto.setEmail(employeeDTO.getEmail());
+                        dto.setMobileNo(employeeDTO.getMobileNo());
+                    }
+                })
+                .toList();
+    }
+
+    public List<CepDTO> getCEPData(String username) {
+        log.info("Fetching CEP list data");
+        return trainingService.getAllCepData(username);
+    }
+
+    public List<SponsorshipDTO> getMTechData(String username) {
+        log.info("Fetching Sponsorship M.Tech list data");
+        return sponsorshipService.getAllSponsorshipList("MTECH",username);
+    }
+
+    public List<SponsorshipDTO> getPhdData(String username) {
+        log.info("Fetching Sponsorship Phd list data");
+        return sponsorshipService.getAllSponsorshipList("PHD",username);
     }
 
     private String buildEmployeeName(EmployeeDTO emp, boolean includeDesignation) {

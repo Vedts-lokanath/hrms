@@ -8,4 +8,5 @@ public interface SponsorshipRepository  extends JpaRepository<Sponsorship, Long>
 
     List<Sponsorship> findAllByIsActive(Integer isActive);
 
+    List<Sponsorship> findAllByDegreeTypeAndIsActive(String type, int isActive);
 }

@@ -23,16 +23,16 @@ public class SponsorshipController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse> getSponsorshipList(@RequestHeader String username)
+    public ResponseEntity<ApiResponse> getSponsorshipList(@RequestParam String type, @RequestHeader String username)
     {
-        List<SponsorshipDTO> list=sponsorshipService.getAllSponsorshipList(username);
+        List<SponsorshipDTO> list=sponsorshipService.getAllSponsorshipList(type,username);
 
         return ResponseEntity.ok(
             new ApiResponse(true, "Sponsorship list fetched", list)
         );
     }
 
-    @PostMapping(value = "/add-sponsorship")
+    @PostMapping
     public ResponseEntity<ApiResponse> addSponsorshipData(
             @Valid @RequestBody SponsorshipDTO dto,
             @RequestHeader String username)
@@ -44,9 +44,9 @@ public class SponsorshipController {
         );
     }
 
-    @PutMapping(value = "/edit-sponorship")
-    public ResponseEntity<ApiResponse> EditSponsorshipData(@Valid @RequestBody SponsorshipDTO dto, @RequestHeader String username) throws IOException {
-        Optional<SponsorshipDTO> data = sponsorshipService.EditSponsorshipData(dto,username);
+    @PutMapping
+    public ResponseEntity<ApiResponse> editSponsorshipData(@Valid @RequestBody SponsorshipDTO dto, @RequestHeader String username) throws IOException {
+        Optional<SponsorshipDTO> data = sponsorshipService.editSponsorshipData(dto,username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Sponsorship data edited successfully", data)
         );

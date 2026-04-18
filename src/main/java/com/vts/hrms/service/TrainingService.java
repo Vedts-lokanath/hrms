@@ -5,6 +5,7 @@ import com.vts.hrms.entity.*;
 import com.vts.hrms.entity.Calendar;
 import com.vts.hrms.entity.Course;
 import com.vts.hrms.entity.Requisition;
+import com.vts.hrms.exception.BadRequestException;
 import com.vts.hrms.exception.NotFoundException;
 import com.vts.hrms.mapper.*;
 import com.vts.hrms.repository.*;
@@ -1354,11 +1355,11 @@ public class TrainingService {
         List<Requisition> list = new ArrayList<>();
 
         if (roleName.equalsIgnoreCase("ROLE_SA_HRT")) {
-            List<String> statusCodes = Arrays.asList("AV","DA");
-            list = requisitionRepository.findAllByStatusInAndIsActive(statusCodes,1);
+            List<String> statusCodes = Arrays.asList("AV", "DA");
+            list = requisitionRepository.findAllByStatusInAndIsActive(statusCodes, 1);
         } else {
-            List<String> statusCodes = Arrays.asList("AD","FC");
-            list = requisitionRepository.findAllByStatusInAndIsActive(statusCodes,1);
+            List<String> statusCodes = Arrays.asList("AD", "FC");
+            list = requisitionRepository.findAllByStatusInAndIsActive(statusCodes, 1);
         }
         List<RequisitionDTO> dtoList = requisitionMapper.toDto(list);
 
@@ -1428,10 +1429,10 @@ public class TrainingService {
         }
 
         for (Requisition req : requisitions) {
-            if(req.getStatus().equalsIgnoreCase("DA")){
+            if (req.getStatus().equalsIgnoreCase("DA")) {
                 req.setStatus("FC");
                 insertTransaction(req.getRequisitionId(), dto.getActionBy(), login.getEmpId(), username, "FC", null);
-            }else {
+            } else {
                 req.setStatus("AD");
                 insertTransaction(req.getRequisitionId(), dto.getActionBy(), login.getEmpId(), username, "AD", null);
             }
@@ -1458,10 +1459,10 @@ public class TrainingService {
         }
 
         for (Requisition req : requisitions) {
-            if("FC".equalsIgnoreCase(req.getStatus())){
+            if ("FC".equalsIgnoreCase(req.getStatus())) {
                 req.setStatus("FA");
                 insertTransaction(req.getRequisitionId(), dto.getActionBy(), dto.getActionBy(), username, "FA", null);
-            }else{
+            } else {
                 req.setStatus("CO");
                 insertTransaction(req.getRequisitionId(), dto.getActionBy(), dto.getActionBy(), username, "CO", null);
             }
@@ -1525,46 +1526,51 @@ public class TrainingService {
         notificationRepository.save(notification);
     }
 
+    @Cacheable(value = "cepListCache", key = "#username")
     public List<CepDTO> getAllCepData(String username) {
         log.info("Request to fetch CEP list by {}", username);
 
-        List<Cep> cepList=cepRepository.findAllByIsActive(1);
-        List<CepDTO> dtoList= cepMapper.toDto(cepList);
+        List<Cep> cepList = cepRepository.findAllByIsActive(1);
+        List<CepDTO> dtoList = cepMapper.toDto(cepList);
 
-        List<DivisionDTO> Divisionlist=masterClient.getDivisionMaster(xApiKey);
+        Map<Long, DivisionDTO> divisionDTOMap = masterCacheService.getDivisionDTOMap();
 
-        Map<Long,DivisionDTO> divisionDTOMap=Divisionlist.stream()
-                .collect(Collectors.toMap
-                        (DivisionDTO::getDivisionId,Function.identity()));
-          dtoList.forEach(data->{
-              DivisionDTO divisionDTO=divisionDTOMap.get(data.getDivisionId());
-              data.setDivisionCode(divisionDTO.getDivisionCode());
-          });
+        dtoList.forEach(data -> {
+            DivisionDTO divisionDTO = divisionDTOMap.get(data.getDivisionId());
+            data.setDivisionCode(divisionDTO.getDivisionName());
+        });
         return dtoList;
     }
 
     public CepDTO getCepID(Long cepId, String username) {
+        log.info("Request to fetch CEP by Id {} by {}", cepId, username);
 
-        log.info("Request to fetch CEP list by {}", username);
-
-        if(cepId == null){
-                throw new NotFoundException("CEP id cannot be null");
+        if (cepId == null) {
+            throw new NotFoundException("CEP id cannot be null");
         }
 
-       Cep cep=cepRepository.findById(cepId)
-                 .orElseThrow(() -> new NotFoundException("CEP  not found"));
+        Cep cep = cepRepository.findById(cepId)
+                .orElseThrow(() -> new NotFoundException("CEP data not found"));
 
         return cepMapper.toDto(cep);
     }
 
 
-    @CacheEvict(value = "CepCache", allEntries = true)
+    @CacheEvict(value = "cepListCache", allEntries = true)
     @Transactional
     public CepDTO addCepData(@Valid CepDTO dto, String username) {
-        log.info("Request to add sponsorship by {}", username);
+        log.info("Request to add CEP by {}", username);
+
+        if (dto.getFromDate() != null && dto.getToDate() != null && dto.getToDate().isBefore(dto.getFromDate())) {
+            throw new IllegalArgumentException("To date cannot be before From date");
+        }
+
+        if (dto.getAmountSpent() != null && dto.getTotalAmount() != null &&
+                dto.getAmountSpent().compareTo(dto.getTotalAmount()) > 0) {
+            throw new IllegalArgumentException("Amount spent cannot exceed total amount");
+        }
 
         Cep cep = cepMapper.toEntity(dto);
-
         cep.setCreatedBy(username);
         cep.setCreatedDate(LocalDateTime.now());
         cep.setIsActive(1);
@@ -1573,17 +1579,26 @@ public class TrainingService {
         return cepMapper.toDto(cep);
     }
 
-    @CacheEvict(value = "CepCache", allEntries = true)
+    @CacheEvict(value = "cepListCache", allEntries = true)
     @Transactional
     public Optional<CepDTO> editCEPData(@Valid CepDTO dto, String username) {
-        log.info("Request to edit program id {} by {}", dto.getCepId(), username);
+        log.info("Request to edit CEP for id {} by {}", dto.getCepId(), username);
 
-        return cepRepository.findById(dto.getCepId()).map(existing->{
-             existing.setModifiedBy(username);
-             existing.setModifiedDate(LocalDateTime.now());
-             cepMapper.partialUpdate(existing,dto);
-             return existing;
-        })
+        if (dto.getFromDate() != null && dto.getToDate() != null && dto.getToDate().isBefore(dto.getFromDate())) {
+            throw new BadRequestException("To date cannot be before From date");
+        }
+
+        if (dto.getAmountSpent() != null && dto.getTotalAmount() != null &&
+                dto.getAmountSpent().compareTo(dto.getTotalAmount()) > 0) {
+            throw new BadRequestException("Amount spent cannot exceed total amount");
+        }
+
+        return cepRepository.findById(dto.getCepId()).map(existing -> {
+                    existing.setModifiedBy(username);
+                    existing.setModifiedDate(LocalDateTime.now());
+                    cepMapper.partialUpdate(existing, dto);
+                    return existing;
+                })
                 .map(cepRepository::save)
                 .map(cepMapper::toDto);
 
@@ -1592,28 +1607,21 @@ public class TrainingService {
     @Cacheable(value = "distributionCache", key = "#username")
     public List<DistributionDTO> getAllDistributionsData(String username) {
         log.info("Request to fetch Distribution list by {}", username);
-        List<Distribution> list=distributionRepository.findAllByIsActive(1);
-        List<DistributionDTO> dtoList=distributionMapper.toDto(list);
 
-        List<EmployeeDTO> employeeDTOList = masterClient.getEmployeeMasterList(xApiKey);
+        List<Distribution> list = distributionRepository.findAllByIsActive(1);
+        List<DistributionDTO> dtoList = distributionMapper.toDto(list);
 
+        Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
 
-        Map<Long,EmployeeDTO> employeeDTOMap=employeeDTOList.stream()
-                .collect(Collectors.toMap(EmployeeDTO::getEmpId,Function.identity()));
-
-
-        dtoList.forEach(data->{
-
+        dtoList.forEach(data -> {
 
             EmployeeDTO employeeDTO = employeeDTOMap.get(data.getEmpId());
-            EmployeeDTO aoEmpDto=employeeDTOMap.get(data.getAoEmpId());
-            EmployeeDTO roEmpDto=employeeDTOMap.get(data.getRoEmpId());
+            EmployeeDTO aoEmpDto = employeeDTOMap.get(data.getAoEmpId());
+            EmployeeDTO roEmpDto = employeeDTOMap.get(data.getRoEmpId());
 
             data.setEmployeeName(buildEmployeeName(employeeDTO, true));
             data.setAoOfficerName(buildEmployeeName(aoEmpDto, true));
             data.setRoOfficerName(buildEmployeeName(roEmpDto, true));
-
-
 
         });
 
@@ -1621,13 +1629,13 @@ public class TrainingService {
     }
 
     public DistributionDTO getDistributionByID(Long distributionId, String username) {
-        log.info("Request to fetch Distributions list by {}", username);
+        log.info("Request to fetch Distribution by id {} by {}", distributionId, username);
 
         if (distributionId == null) {
             throw new NotFoundException("Distribution id cannot be null");
         }
         Distribution distribution = distributionRepository.findById(distributionId)
-                .orElseThrow(() -> new NotFoundException("Distribution id  not found"));
+                .orElseThrow(() -> new NotFoundException("Distribution data not found"));
 
         return distributionMapper.toDto(distribution);
     }
@@ -1637,15 +1645,15 @@ public class TrainingService {
     public DistributionDTO addDistributionData(@Valid DistributionDTO dto, String username) {
         log.info("Request to add Distribution by {}", username);
 
-        Distribution distribution=distributionMapper.toEntity(dto);
+        Distribution distribution = distributionMapper.toEntity(dto);
 
         distribution.setDistributionDate(LocalDate.now());
         distribution.setCreatedBy(username);
         distribution.setCreatedDate(LocalDateTime.now());
         distribution.setIsActive(1);
 
-          distribution=distributionRepository.save(distribution);
-          return distributionMapper.toDto(distribution);
+        distribution = distributionRepository.save(distribution);
+        return distributionMapper.toDto(distribution);
     }
 
     @CacheEvict(value = "distributionCache", allEntries = true)
@@ -1653,13 +1661,13 @@ public class TrainingService {
         log.info("Request to edit distribution id {} by {}", dto.getDistributionId(), username);
 
         return distributionRepository.findById(dto.getDistributionId())
-                 .map(ex->{
-                     ex.setModifiedBy(username);
-                     ex.setModifiedDate(LocalDateTime.now());
-                     distributionMapper.partialUpdate(ex,dto);
-                     return ex;
-                 })
-                 .map(distributionRepository::save)
-                 .map(distributionMapper::toDto);
+                .map(ex -> {
+                    ex.setModifiedBy(username);
+                    ex.setModifiedDate(LocalDateTime.now());
+                    distributionMapper.partialUpdate(ex, dto);
+                    return ex;
+                })
+                .map(distributionRepository::save)
+                .map(distributionMapper::toDto);
     }
 }

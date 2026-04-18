@@ -473,7 +473,7 @@ public class TrainingController {
         );
     }
 
-    @GetMapping(value = "cepById/{cepId}")
+    @GetMapping(value = "/cepById/{cepId}")
     public ResponseEntity<ApiResponse> getCepListBYID(@PathVariable Long cepId, @RequestHeader String username) {
         CepDTO list = trainingService.getCepID(cepId,username);
         return ResponseEntity.ok(
@@ -481,7 +481,7 @@ public class TrainingController {
         );
     }
 
-    @PostMapping(value = "/add-CEP")
+    @PostMapping(value = "/add-cep")
     public ResponseEntity<ApiResponse> addCepData(
             @Valid @RequestBody CepDTO dto,
             @RequestHeader String username)
@@ -493,7 +493,7 @@ public class TrainingController {
         );
     }
 
-    @PutMapping(value = "/Edit-cep")
+    @PutMapping(value = "/edit-cep")
     public ResponseEntity<ApiResponse> editCepData(@Valid @RequestBody CepDTO dto, @RequestHeader String Username )
     {
         Optional<CepDTO> list=trainingService.editCEPData(dto, Username);
@@ -513,7 +513,7 @@ public class TrainingController {
         );
     }
 
-    @GetMapping(value = "distributionById/{id}")
+    @GetMapping(value = "/distributionById/{id}")
     public ResponseEntity<ApiResponse> GetDistributionByID(@PathVariable Long distributionId, @RequestHeader String username) {
         DistributionDTO list = trainingService.getDistributionByID(distributionId,username);
         return ResponseEntity.ok(

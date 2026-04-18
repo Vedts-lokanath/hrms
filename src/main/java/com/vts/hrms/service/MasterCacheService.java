@@ -1,6 +1,8 @@
 package com.vts.hrms.service;
 
+import com.vts.hrms.dto.DivisionDTO;
 import com.vts.hrms.dto.EmployeeDTO;
+import com.vts.hrms.dto.ProjectMasterDTO;
 import com.vts.hrms.entity.Course;
 import com.vts.hrms.entity.Organizer;
 import com.vts.hrms.entity.Status;
@@ -44,6 +46,22 @@ public class MasterCacheService {
         return employeeList.stream()
                 .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
                 .collect(Collectors.toMap(EmployeeDTO::getEmpId, emp -> emp));
+    }
+
+    @Cacheable(value = "divisionMapCache", key = "'divisionMap'")
+    public Map<Long, DivisionDTO> getDivisionDTOMap() {
+        List<DivisionDTO> divisionDTOList = masterClient.getDivisionMaster(xApiKey);
+
+        return divisionDTOList.stream()
+                .collect(Collectors.toMap(DivisionDTO::getDivisionId, emp -> emp));
+    }
+
+    @Cacheable(value = "projectMapCache", key = "'projectMap'")
+    public Map<Long, ProjectMasterDTO> getProjectDTOMap() {
+        List<ProjectMasterDTO> projectMasterDTOList = masterClient.getProjectMasterList(xApiKey);
+
+        return projectMasterDTOList.stream()
+                .collect(Collectors.toMap(ProjectMasterDTO::getProjectId, emp -> emp));
     }
 
     @Cacheable(value = "organizerCache", key = "'organizers'")
