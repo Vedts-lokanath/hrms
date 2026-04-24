@@ -54,6 +54,39 @@ public class MasterService {
         this.masterCacheService = masterCacheService;
     }
 
+    private String buildEmployeeName(EmployeeDTO emp, boolean includeDesignation) {
+
+        if (emp == null) return "";
+
+        String title = Optional.ofNullable(emp.getTitle())
+                .filter(t -> !t.isBlank())
+                .orElse(null);
+
+        String salutation = Optional.ofNullable(emp.getSalutation())
+                .filter(s -> !s.isBlank())
+                .orElse(null);
+
+        String name = Optional.ofNullable(emp.getEmpName()).orElse("");
+        String designation = Optional.ofNullable(emp.getEmpDesigName()).orElse("");
+
+        // Priority: Title → Salutation → Nothing
+        String prefix = salutation != null ? salutation : (title != null ? title : "");
+
+        StringBuilder fullName = new StringBuilder();
+
+        if (!prefix.isBlank()) {
+            fullName.append(prefix).append(" ");
+        }
+
+        fullName.append(name);
+
+        if (includeDesignation && !designation.isBlank()) {
+            fullName.append(", ").append(designation);
+        }
+
+        return fullName.toString().trim();
+    }
+
     @Cacheable(value = "designationList")
     public List<DesignationDTO> getEmpDesigMaster() {
         log.info("Fetching designation master");
@@ -100,7 +133,12 @@ public class MasterService {
         log.info("Fetching employee master");
         return masterClient.getEmployeeMasterList(xApiKey).stream()
                 .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
+                .map(emp->{
+                    emp.setEmpName(buildEmployeeName(emp,false));
+                    return emp;
+                })
                 .toList();
+
     }
 
     @Cacheable(value = "signAuthRoles", key = "#username")
@@ -143,7 +181,7 @@ public class MasterService {
 
             EmployeeDTO employee = employeeMap.get(dto.getEmpId());
             if (employee != null) {
-                dto.setEmployeeName(employee.getEmpName());
+                dto.setEmployeeName(buildEmployeeName(employee,true));
                 dto.setEmployeeDesignation(employee.getEmpDesigName());
             }
         }
@@ -154,6 +192,7 @@ public class MasterService {
     public SignRoleAuthorityDTO addSignRoleAuthority(SignRoleAuthorityDTO dto, String username) {
         SignRoleAuthority roleAuthority = signRoleAuthorityMapper.toEntity(dto);
         roleAuthority.setCreatedBy(username);
+        roleAuthority.setSerialNo(roleAuthority.getSerialNo()!=null? roleAuthority.getSerialNo() : 1L);
         roleAuthority.setCreatedDate(LocalDateTime.now());
         roleAuthority.setIsActive(1);
         roleAuthority = signRoleAuthorityRepository.save(roleAuthority);

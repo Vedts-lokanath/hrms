@@ -10,6 +10,9 @@ import java.util.List;
 
 public interface SignRoleAuthorityRepository extends JpaRepository<SignRoleAuthority, Long> {
 
+    @Query("""
+            SELECT r FROM SignRoleAuthority r WHERE r.isActive=1 ORDER BY r.signRoleAuthorityId DESC
+            """)
     List<SignRoleAuthority> findAllByIsActive(int isActive);
 
     @Query("SELECT new com.vts.hrms.dto.SignRoleAuthorityDTO(" +

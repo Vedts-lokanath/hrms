@@ -57,7 +57,16 @@ public class TrainingController {
     public ResponseEntity<ApiResponse> addCalenderData(@Valid @ModelAttribute CalendarDTO dto, @RequestHeader String username) throws IOException {
         CalendarDTO data = trainingService.addCalenderData(dto,username);
         return ResponseEntity.ok(
-                new ApiResponse(true, "Calender data added successfully", data)
+                new ApiResponse(true, "Calendar data added successfully", data)
+        );
+    }
+
+
+    @PutMapping(value = "/update-calendar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse> editCalendarData(@Valid @ModelAttribute CalendarDTO dto, @RequestHeader String username) throws IOException {
+        Optional<CalendarDTO> data = trainingService.updateCalendarData(dto,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Calendar data updated successfully", data)
         );
     }
 
@@ -225,6 +234,7 @@ public class TrainingController {
                 new ApiResponse(true, "Requisition data updated successfully", data)
         );
     }
+
 
     @PostMapping(value = "/requisition-feedback", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse> requisitionFeedback(@ModelAttribute FeedbackDTO dto, @RequestHeader String username) throws IOException {

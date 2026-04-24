@@ -15,6 +15,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,7 @@ public class AdminController {
     private final AdminService adminService;
 
     private final LoginRepository loginRepository;
+    private DateTimeFormatter formatter;
 
     public AdminController(AdminService adminService,LoginRepository loginRepository) {
 
@@ -224,6 +227,23 @@ public class AdminController {
         }
     }
 
+    @GetMapping(value = "/audit-stamping-list")
+    public ResponseEntity<List<AuditStampingDTO>> auditStampingList(@RequestHeader String username,
+                                                                    @RequestParam String selUser,
+                                                                    @RequestParam LocalDate fromDate,
+                                                                    @RequestParam LocalDate toDate) throws Exception
+    {
+        try {
 
+            LOG.info("Inside auditStampingList | User: {},fromDate: {},toDate: {}", username,fromDate,toDate);
+
+            List<AuditStampingDTO> dto = adminService.auditStampingList(selUser, fromDate, toDate);
+
+            return new ResponseEntity<>(dto, HttpStatus.OK);
+        } catch (Exception e) {
+            LOG.error("Error in auditStampingList: {}", e.getMessage(), e);
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+    }
 
 }

@@ -189,8 +189,8 @@ public class ReportService {
         String name = Optional.ofNullable(emp.getEmpName()).orElse("");
         String designation = Optional.ofNullable(emp.getEmpDesigName()).orElse("");
 
-        // Priority: Title → Salutation → Nothing
-        String prefix = title != null ? title : (salutation != null ? salutation : "");
+
+        String prefix = salutation != null ? salutation : (title != null ? title : "");
 
         StringBuilder fullName = new StringBuilder();
 

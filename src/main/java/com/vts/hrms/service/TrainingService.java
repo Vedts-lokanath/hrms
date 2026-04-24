@@ -6,6 +6,7 @@ import com.vts.hrms.entity.Calendar;
 import com.vts.hrms.entity.Course;
 import com.vts.hrms.entity.Requisition;
 import com.vts.hrms.exception.BadRequestException;
+import com.vts.hrms.exception.ExcelValidationException;
 import com.vts.hrms.exception.NotFoundException;
 import com.vts.hrms.mapper.*;
 import com.vts.hrms.repository.*;
@@ -862,8 +863,8 @@ public class TrainingService {
         String name = Optional.ofNullable(emp.getEmpName()).orElse("");
         String designation = Optional.ofNullable(emp.getEmpDesigName()).orElse("");
 
-        // Priority: Title → Salutation → Nothing
-        String prefix = title != null ? title : (salutation != null ? salutation : "");
+        // Priority: Salutation → Title → Nothing
+        String prefix = salutation != null ? salutation : (title != null ? title : "");
 
         StringBuilder fullName = new StringBuilder();
 
@@ -1625,7 +1626,7 @@ public class TrainingService {
 
         });
 
-      return dtoList;
+        return dtoList;
     }
 
     public DistributionDTO getDistributionByID(Long distributionId, String username) {
@@ -1669,5 +1670,35 @@ public class TrainingService {
                 })
                 .map(distributionRepository::save)
                 .map(distributionMapper::toDto);
+    }
+
+
+    public Optional<CalendarDTO> updateCalendarData(@Valid CalendarDTO dto, String username) {
+        log.info("Request to update calendar for id {} by {}", dto.getCalendarId(), username);
+
+        OrganizerDTO organizerDTO = getOrganizerById(dto.getOrganizerId())
+                .orElseThrow(() -> new NotFoundException("Organizer data not found"));
+
+        Path fullpath = Paths.get(appStorage, "Calendar", dto.getYear(), organizerDTO.getOrganizer().trim());
+
+        return calenderRepository
+                .findById(dto.getCalendarId())
+                .map(existingReq -> {
+                    existingReq.setModifiedBy(username);
+                    existingReq.setModifiedDate(LocalDateTime.now());
+
+                    if (dto.getFile() != null && !dto.getFile().isEmpty()) {
+                        updateFile(dto.getFile(), existingReq.getCalendarFileName(), fullpath, existingReq::setCalendarFileName);
+                    }
+                    if (dto.getCoverFile() != null && !dto.getCoverFile().isEmpty()) {
+                        updateFile(dto.getCoverFile(), existingReq.getCoveringLetter(), fullpath, existingReq::setCoveringLetter);
+                    }
+
+                    calenderMapper.partialUpdate(existingReq, dto);
+                    return existingReq;
+                })
+                .map(calenderRepository::save)
+                .map(calenderMapper::toDto);
+
     }
 }

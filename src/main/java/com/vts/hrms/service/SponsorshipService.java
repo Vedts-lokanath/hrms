@@ -41,19 +41,20 @@ public class SponsorshipService {
     public List<SponsorshipDTO> getAllSponsorshipList(String type, String username) {
         log.info("Request to fetch sponsorship list for type {} by {}", type, username);
 
-        List<Sponsorship> list = sponsorshipRepository.findAllByDegreeTypeAndIsActive(type,1);
+        List<Sponsorship> list = sponsorshipRepository.findAllByDegreeType(type);
         List<SponsorshipDTO> dtoList = sponsorshipMapper.toDto(list);
 
         Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
 
         dtoList.forEach(data -> {
             EmployeeDTO employeeDTO = employeeDTOMap.get(data.getEmpId());
-
-            data.setEmpNo(employeeDTO.getEmpNo());
-            data.setEmployeeName(buildEmployeeName(employeeDTO,false));
-            data.setEmpDesigCode(employeeDTO.getEmpDesigName());
-            data.setDesigCadre(employeeDTO.getDesigCadre());
-            data.setEmpDivCode(employeeDTO.getEmpDivCode());
+             if(employeeDTO!=null) {
+                 data.setEmpNo(employeeDTO.getEmpNo());
+                 data.setEmployeeName(buildEmployeeName(employeeDTO, false));
+                 data.setEmpDesigCode(employeeDTO.getEmpDesigName());
+                 data.setDesigCadre(employeeDTO.getDesigCadre());
+                 data.setEmpDivCode(employeeDTO.getEmpDivCode());
+             }
         });
 
         return dtoList;

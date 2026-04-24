@@ -14,8 +14,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -35,6 +38,7 @@ public class AdminService {
     private final FormRoleAccessRepository formRoleAccessRepository;
     private final NotificationRepository notificationRepository;
     private final MasterCacheService masterCacheService;
+    private final AuditStampingRepository auditStampingRepository;
 
 
     @Value("${x_api_key}")
@@ -42,8 +46,9 @@ public class AdminService {
 
     @Value("${labCode}")
     private String labCode;
+    private DateTimeFormatter formatter;
 
-    public AdminService(RoleRepository roleRepository, LoginRepository loginRepository, RoleSecurityRepository roleSecurityRepository, MasterClientService masterClient, FormModuleRepository formModuleRepository, FormDetailRepository formDetailRepository, FormRoleAccessRepository formRoleAccessRepository, NotificationRepository notificationRepository, MasterCacheService masterCacheService) {
+    public AdminService(RoleRepository roleRepository, LoginRepository loginRepository, RoleSecurityRepository roleSecurityRepository, MasterClientService masterClient, FormModuleRepository formModuleRepository, FormDetailRepository formDetailRepository, FormRoleAccessRepository formRoleAccessRepository, NotificationRepository notificationRepository, MasterCacheService masterCacheService, AuditStampingRepository auditStampingRepository) {
         this.roleRepository = roleRepository;
         this.loginRepository = loginRepository;
         this.roleSecurityRepository = roleSecurityRepository;
@@ -53,6 +58,7 @@ public class AdminService {
         this.formRoleAccessRepository = formRoleAccessRepository;
         this.notificationRepository = notificationRepository;
         this.masterCacheService = masterCacheService;
+        this.auditStampingRepository = auditStampingRepository;
     }
 
     @Cacheable(value = "roleList")
@@ -440,4 +446,27 @@ public class AdminService {
             return 0;
         }
     }
+
+    public List<AuditStampingDTO> auditStampingList(String username, LocalDate fromDate, LocalDate toDate) {
+
+        if (fromDate == null || toDate == null) {
+            log.warn("auditStampingList : One or more required parameters are null - fromDate : {}, toDate : {}", fromDate, toDate);
+            return List.of();
+        }
+
+        log.info("LoginService Inside method auditStampingList | user: {}, fromDate : {}, toDate : {}", username, fromDate, toDate);
+
+        try {
+            List<AuditStampingDTO> auditList = auditStampingRepository.auditList(username, fromDate, toDate.plusDays(1));
+                return auditList;
+
+        } catch (Exception e) {
+            log.error("Error in LoginService Inside method auditStampingList: {}", e.getMessage(), e);
+            return List.of();
+        }
+    }
+
 }
+
+
+
