@@ -1,9 +1,6 @@
 package com.vts.hrms.controller;
 
-import com.vts.hrms.dto.CepDTO;
-import com.vts.hrms.dto.EmployeeDTO;
-import com.vts.hrms.dto.RequisitionDTO;
-import com.vts.hrms.dto.SponsorshipDTO;
+import com.vts.hrms.dto.*;
 import com.vts.hrms.service.ReportService;
 import com.vts.hrms.util.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -77,6 +74,51 @@ public class ReportController {
         List<SponsorshipDTO> list = reportsService.getPhdData(username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Sponsorship Phd list fetched successfully", list)
+        );
+    }
+
+    @GetMapping("/hr-distribution")
+    public ResponseEntity<ApiResponse> getHrDistributionData(@RequestHeader String username) {
+        LOG.info(" Request to fetch get HR distribution list");
+        List<DistributionDTO> list = reportsService.getHrDistributionData(username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "HR distribution list fetched successfully", list)
+        );
+    }
+
+    @GetMapping("/annual-training")
+    public ResponseEntity<ApiResponse> getAnnualTrainingReport(@RequestHeader String username) {
+        LOG.info(" Request to fetch get annual training report list");
+        List<AnnualTrainingReportDTO> list = reportsService.getAnnualTrainingReport(username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Annual training report list fetched successfully", list)
+        );
+    }
+
+    @GetMapping("/budget-expenditure")
+    public ResponseEntity<ApiResponse> getBudgetExpenditureReport(@RequestHeader String username) {
+        LOG.info(" Request to fetch get budget expenditure report list");
+        List<BudgetExpenditureDTO> list = reportsService.getBudgetExpenditureReport(username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Budget expenditure report list fetched successfully", list)
+        );
+    }
+
+    @GetMapping("/gender-budgeting")
+    public ResponseEntity<ApiResponse> getGenderBudgetReport(@RequestHeader String username) {
+        LOG.info(" Request to fetch get gender budgeting report list");
+        List<GenderBudgetDTO> data = reportsService.getGenderBudgetReport(username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Gender budget report list fetched successfully", data)
+        );
+    }
+
+    @GetMapping("/training-scst")
+    public ResponseEntity<ApiResponse> getTrainingSCSTReport(@RequestHeader("Authorization") String token,@RequestHeader String username) {
+        LOG.info(" Request to fetch get training scst report list");
+        List<TrainingSCSTDTO> data = reportsService.getTrainingSCSTReport(token,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Training SC/ST report list fetched successfully", data)
         );
     }
 

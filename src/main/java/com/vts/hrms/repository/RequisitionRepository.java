@@ -81,11 +81,11 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Long> 
             SELECT new com.vts.hrms.dto.RequisitionDashboardDTO(
             c.organizerId,
             o.organizer,
-            COUNT(r.requisitionId),
-            SUM(CASE WHEN r.status IN ('AA','REV','RR','RV') THEN 1 ELSE 0 END),
-            SUM(CASE WHEN r.status='AF' THEN 1 ELSE 0 END),
-            SUM(CASE WHEN r.status='AR' THEN 1 ELSE 0 END),
-            SUM(CASE WHEN r.status='AV' THEN 1 ELSE 0 END)
+            COUNT(r.requisitionId) AS total,
+            SUM(CASE WHEN r.status IN ('AA','REV','RR','RV','RS') THEN 1 ELSE 0 END) AS pending,
+            SUM(CASE WHEN r.status='AF' THEN 1 ELSE 0 END) AS forwarded,
+            SUM(CASE WHEN r.status='AR' THEN 1 ELSE 0 END) AS recommended,
+            SUM(CASE WHEN r.status='AV' THEN 1 ELSE 0 END) AS approved
             )
             FROM Requisition r
             JOIN Course c ON r.courseId = c.courseId
