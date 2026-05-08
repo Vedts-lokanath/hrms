@@ -11,12 +11,14 @@ public class JournalDTO {
 
     @NotNull(message = "Employee ID is required")
     private Long empId;
+    private String empNo;
+    private String desigCadre;
+    private String employeeName;
 
     @NotBlank(message = "Title of paper cannot be empty")
     private String titleOfPaper;
 
     @NotBlank(message = "Journal type is required")
-    @Pattern(regexp = "National|International", message = "Type must be 'National' or 'International'")
     private String journalType;
 
     @NotBlank(message = "Journal name is required")

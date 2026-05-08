@@ -333,7 +333,19 @@ public class AdminController {
             LOG.error("Error while changing the password for user: {} {}", username, e.getMessage(), e);
             return new ResponseEntity<>("0", HttpStatus.BAD_REQUEST);
         }
+    }
 
+    @GetMapping(value = "/get-license", produces = "application/json")
+    public ResponseEntity<Boolean> getLicense() {
+        LOG.info("Inside getLicense()");
+        try {
+            boolean isValid = adminService.getLicense();
+            return ResponseEntity.ok(isValid);
+        } catch (Exception e) {
+            LOG.error("Error in getLicense: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(false);
+        }
     }
 
 }

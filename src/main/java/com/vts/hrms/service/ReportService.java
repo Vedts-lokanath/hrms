@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vts.hrms.dto.*;
 import com.vts.hrms.entity.*;
+import com.vts.hrms.mapper.CepMapper;
 import com.vts.hrms.mapper.RequisitionMapper;
 import com.vts.hrms.repository.*;
 import com.vts.hrms.util.ApiResponse;
@@ -18,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -46,6 +48,8 @@ public class ReportService {
     private final CourseRepository courseRepository;
     private final CourseTypeRepository courseTypeRepository;
     private final SponsorshipRepository sponsorshipRepository;
+    private final CepRepository cepRepository;
+    private final CepMapper cepMapper;
 
     @Cacheable(value = "getNominalROllList")
     public List<EmployeeDTO> getNominalRollList(String token) {
@@ -163,9 +167,39 @@ public class ReportService {
                 .toList();
     }
 
-    public List<CepDTO> getCEPData(String username) {
-        log.info("Fetching CEP list data");
-        return trainingService.getAllCepData(username);
+    @Cacheable(value = "cepReportCache",key = "#fromDate + '_' + #toDate + '_' + #username")
+    public List<CepDTO> getCEPData(LocalDate fromDate, LocalDate toDate, String username) {
+        log.info("Fetching CEP list data from {} to {}", fromDate, toDate);
+
+        List<Cep> cepList = cepRepository.getCepDataByDateRange(fromDate, toDate);
+        List<CepDTO> dtoList = cepMapper.toDto(cepList);
+
+        Map<Long, DivisionDTO> divisionDTOMap = masterCacheService.getDivisionDTOMap();
+        Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
+
+        dtoList.forEach(data -> {
+
+            DivisionDTO divisionDTO = divisionDTOMap.get(data.getDivisionId());
+            EmployeeDTO coordinator = employeeDTOMap.get(data.getCourseCoordinatorId());
+            EmployeeDTO deputyCoordinator = employeeDTOMap.get(data.getDeputyCourseCoordinatorId());
+
+            if (divisionDTO != null) {
+                data.setDivisionCode(divisionDTO.getDivisionShortName());
+            }
+
+            if (coordinator != null) {
+                data.setCourseCoordinatorName(
+                        CommonUtil.buildEmployeeName(coordinator, true)
+                );
+            }
+
+            if (deputyCoordinator != null) {
+                data.setDeputyCourseCoordinatorName(
+                        CommonUtil.buildEmployeeName(deputyCoordinator, true)
+                );
+            }
+        });
+        return dtoList;
     }
 
     public List<SponsorshipDTO> getMTechData(String username) {
@@ -315,13 +349,13 @@ public class ReportService {
     }
 
 
-    public List<BudgetExpenditureDTO> getBudgetExpenditureReport(String username) {
+    public List<BudgetExpenditureDTO> getBudgetExpenditureReport(LocalDate fromDate, LocalDate toDate, String username) {
         log.info("Fetching budget expenditure report data");
 
-        List<Requisition> requisitions = requisitionRepository.findAll();
+        List<Requisition> requisitions = requisitionRepository.getRequisitionDataByDateRange(fromDate,toDate);
         List<Course> courses = courseRepository.findAll();
         List<CourseType> courseTypes = courseTypeRepository.findAll();
-        List<Sponsorship> sponsorships = sponsorshipRepository.findAll();
+        List<Sponsorship> sponsorships = sponsorshipRepository.getSponsorshipDataByDateRange(fromDate,toDate);
 
         // Convert to Map for fast lookup
         Map<Long, Course> courseMap = courses.stream()
@@ -697,4 +731,8 @@ public class ReportService {
         dto.setOthersTotalExp(zero);
     }
 
+    public List<JournalDTO> getResearchPaperIntReport(String username) {
+        log.info("Fetching research paper report data");
+        return trainingService.getJournalList(username);
+    }
 }

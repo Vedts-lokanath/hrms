@@ -6,7 +6,6 @@ import com.vts.hrms.entity.Calendar;
 import com.vts.hrms.entity.Course;
 import com.vts.hrms.entity.Requisition;
 import com.vts.hrms.exception.BadRequestException;
-import com.vts.hrms.exception.ExcelValidationException;
 import com.vts.hrms.exception.NotFoundException;
 import com.vts.hrms.mapper.*;
 import com.vts.hrms.repository.*;
@@ -33,6 +32,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class TrainingService {
@@ -73,9 +73,14 @@ public class TrainingService {
     private final CepMapper cepMapper;
     private final DistributionRepository distributionRepository;
     private final DistributionMapper distributionMapper;
+    private final CepAttachmentsRepository cepAttachmentsRepository;
+    private final JournalMapper journalMapper;
+    private final JournalRepository journalRepository;
+    private final MandatoryTrainingMapper mandatoryTrainingMapper;
+    private final MandatoryTrainingRepository mandatoryTrainingRepository;
 
 
-    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, OrganizerMapper organizerMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, CourseMapper courseMapper, CourseRepository courseRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository, FeedbackMapper feedbackMapper, FeedbackRepository feedbackRepository, RequisitionTransactionRepository transactionRepository, MasterCacheService masterCacheService, NotificationRepository notificationRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, RequisitionSequenceRepository sequenceRepository, EvaluationRepository evaluationRepository, EligibilityMapper eligibilityMapper, EligibilityRepository eligibilityRepository, CourseTypeRepository courseTypeRepository, LoginRepository loginRepository, CepRepository cepRepository, CepMapper cepMapper, DistributionRepository distributionRepository, DistributionMapper distributionMapper) {
+    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, OrganizerMapper organizerMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, CourseMapper courseMapper, CourseRepository courseRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository, FeedbackMapper feedbackMapper, FeedbackRepository feedbackRepository, RequisitionTransactionRepository transactionRepository, MasterCacheService masterCacheService, NotificationRepository notificationRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, RequisitionSequenceRepository sequenceRepository, EvaluationRepository evaluationRepository, EligibilityMapper eligibilityMapper, EligibilityRepository eligibilityRepository, CourseTypeRepository courseTypeRepository, LoginRepository loginRepository, CepRepository cepRepository, CepMapper cepMapper, DistributionRepository distributionRepository, DistributionMapper distributionMapper, CepAttachmentsRepository cepAttachmentsRepository, JournalMapper journalMapper, JournalRepository journalRepository, MandatoryTrainingMapper mandatoryTrainingMapper, MandatoryTrainingRepository mandatoryTrainingRepository) {
         this.masterClient = masterClient;
         this.organizerRepository = organizerRepository;
         this.organizerMapper = organizerMapper;
@@ -101,6 +106,11 @@ public class TrainingService {
         this.cepMapper = cepMapper;
         this.distributionRepository = distributionRepository;
         this.distributionMapper = distributionMapper;
+        this.cepAttachmentsRepository = cepAttachmentsRepository;
+        this.journalMapper = journalMapper;
+        this.journalRepository = journalRepository;
+        this.mandatoryTrainingMapper = mandatoryTrainingMapper;
+        this.mandatoryTrainingRepository = mandatoryTrainingRepository;
     }
 
     @Transactional(readOnly = true)
@@ -377,7 +387,7 @@ public class TrainingService {
                 dto.setEmail(employeeDTO.getEmail());
                 dto.setMobileNo(employeeDTO.getMobileNo());
             }
-            if(courseType != null){
+            if (courseType != null) {
                 dto.setCourseType(courseType.getCourseType());
             }
         });
@@ -664,10 +674,10 @@ public class TrainingService {
                 throw new NotFoundException("In SignRoleAuthority SA-HRT role not found");
             }
 
-             for(SignRoleAuthorityDTO authorityDTO : authorityDTOList) {
-                 insertTransaction(dto.getRequisitionId(), dto.getActionBy(), authorityDTO.getEmpId(), username, "SF", null);
-                 insertNotification(dto.getActionBy(), authorityDTO.getEmpId(), "req-approval", message, username);
-             }
+            for (SignRoleAuthorityDTO authorityDTO : authorityDTOList) {
+                insertTransaction(dto.getRequisitionId(), dto.getActionBy(), authorityDTO.getEmpId(), username, "SF", null);
+                insertNotification(dto.getActionBy(), authorityDTO.getEmpId(), "req-approval", message, username);
+            }
         } else {
             requisition.setStatus("AF");
             DivisionDTO divisionDTO = Optional.of(employeeDTO)
@@ -711,7 +721,7 @@ public class TrainingService {
                 EmployeeDTO employeeDTO = employeeMap.get(dto.getActionBy());
 
                 String message = getNotificationMsg(requisition.getRequisitionNumber(), employeeDTO, "Forward by");
-                for(SignRoleAuthorityDTO authorityDTO : authorityDTOList) {
+                for (SignRoleAuthorityDTO authorityDTO : authorityDTOList) {
                     insertTransaction(dto.getRequisitionId(), dto.getActionBy(), authorityDTO.getEmpId(), username, "CA", null);
                     insertNotification(dto.getActionBy(), authorityDTO.getEmpId(), "req-approval", message, username);
                 }
@@ -731,7 +741,7 @@ public class TrainingService {
             EmployeeDTO employeeDTO = employeeMap.get(dto.getActionBy());
 
             String message = getNotificationMsg(requisition.getRequisitionNumber(), employeeDTO, "Forward by");
-            for(SignRoleAuthorityDTO authorityDTO : authorityDTOList) {
+            for (SignRoleAuthorityDTO authorityDTO : authorityDTOList) {
                 insertTransaction(dto.getRequisitionId(), dto.getActionBy(), authorityDTO.getEmpId(), username, "AR", null);
                 insertNotification(dto.getActionBy(), authorityDTO.getEmpId(), "req-approval", message, username);
             }
@@ -758,7 +768,7 @@ public class TrainingService {
             EmployeeDTO employeeDTO = employeeMap.get(dto.getActionBy());
 
             String message = getNotificationMsg(requisition.getRequisitionNumber(), employeeDTO, "Forward by");
-            for(SignRoleAuthorityDTO authorityDTO : authorityDTOList) {
+            for (SignRoleAuthorityDTO authorityDTO : authorityDTOList) {
                 insertTransaction(dto.getRequisitionId(), dto.getActionBy(), authorityDTO.getEmpId(), username, "AS", null);
                 insertNotification(dto.getActionBy(), authorityDTO.getEmpId(), "req-approval", message, username);
             }
@@ -1543,14 +1553,21 @@ public class TrainingService {
     public List<CepDTO> getAllCepData(String username) {
         log.info("Request to fetch CEP list by {}", username);
 
-        List<Cep> cepList = cepRepository.findAllByIsActive(1);
+        List<Cep> cepList = cepRepository.findAllByIsActiveOrderByCepIdDesc(1);
         List<CepDTO> dtoList = cepMapper.toDto(cepList);
 
         Map<Long, DivisionDTO> divisionDTOMap = masterCacheService.getDivisionDTOMap();
+        Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
 
         dtoList.forEach(data -> {
             DivisionDTO divisionDTO = divisionDTOMap.get(data.getDivisionId());
+
+            EmployeeDTO coordinator = employeeDTOMap.get(data.getCourseCoordinatorId());
+            EmployeeDTO deputyCoordinator = employeeDTOMap.get(data.getDeputyCourseCoordinatorId());
+
             data.setDivisionCode(divisionDTO.getDivisionShortName());
+            data.setCourseCoordinatorName(CommonUtil.buildEmployeeName(coordinator, true));
+            data.setDeputyCourseCoordinatorName(CommonUtil.buildEmployeeName(deputyCoordinator, true));
         });
         return dtoList;
     }
@@ -1565,13 +1582,26 @@ public class TrainingService {
         Cep cep = cepRepository.findById(cepId)
                 .orElseThrow(() -> new NotFoundException("CEP data not found"));
 
-        return cepMapper.toDto(cep);
+        CepDTO dto = cepMapper.toDto(cep);
+
+        List<CepAttachments> attachments = cepAttachmentsRepository.findByCepId(cepId);
+        List<CepAttachmentsDTO> dtoList = new ArrayList<>();
+        for (CepAttachments cepData : attachments) {
+            CepAttachmentsDTO attachDto = new CepAttachmentsDTO();
+            attachDto.setAttachmentId(cepData.getAttachmentId());
+            attachDto.setAttachmentName(cepData.getAttachmentName());
+            attachDto.setExistingFileName(cepData.getAttachFile());
+            dtoList.add(attachDto);
+        }
+
+        dto.setCepAttachments(dtoList);
+        return dto;
     }
 
 
-    @CacheEvict(value = "cepListCache", allEntries = true)
+    @CacheEvict(value = {"cepListCache", "cepReportCache"}, allEntries = true)
     @Transactional
-    public CepDTO addCepData(@Valid CepDTO dto, String username) {
+    public CepDTO addCepData(@Valid CepDTO dto, String username) throws IOException {
         log.info("Request to add CEP by {}", username);
 
         if (dto.getFromDate() != null && dto.getToDate() != null && dto.getToDate().isBefore(dto.getFromDate())) {
@@ -1589,15 +1619,40 @@ public class TrainingService {
         cep.setIsActive(1);
 
         cep = cepRepository.save(cep);
+
+        List<CepAttachments> attachments = new ArrayList<>();
+
+        for (CepAttachmentsDTO attachmentsDTO : dto.getCepAttachments()) {
+            CepAttachments attach = new CepAttachments();
+            attach.setCepId(cep.getCepId());
+            attach.setAttachmentName(attachmentsDTO.getAttachmentName());
+
+            if (attachmentsDTO.getAttachFile() != null && !attachmentsDTO.getAttachFile().isEmpty()) {
+                String folderName = "CEP_" + cep.getCepId();
+                Path filepath = Paths.get(appStorage, "CEP Attachments", folderName);
+                FileStorageUtil.saveFile(filepath, attachmentsDTO.getAttachFile().getOriginalFilename(), attachmentsDTO.getAttachFile());
+                attach.setAttachFile(attachmentsDTO.getAttachFile().getOriginalFilename());
+            }
+
+            attach.setCreatedBy(username);
+            attach.setCreatedDate(LocalDateTime.now());
+            attach.setIsActive(1);
+            attachments.add(attach);
+        }
+        cepAttachmentsRepository.saveAll(attachments);
+
         return cepMapper.toDto(cep);
     }
 
-    @CacheEvict(value = "cepListCache", allEntries = true)
+    @CacheEvict(value = {"cepListCache", "cepReportCache"}, allEntries = true)
     @Transactional
-    public Optional<CepDTO> editCEPData(@Valid CepDTO dto, String username) {
+    public Optional<CepDTO> editCEPData(@Valid CepDTO dto, String username) throws IOException {
+
         log.info("Request to edit CEP for id {} by {}", dto.getCepId(), username);
 
-        if (dto.getFromDate() != null && dto.getToDate() != null && dto.getToDate().isBefore(dto.getFromDate())) {
+        // 👉 Validations
+        if (dto.getFromDate() != null && dto.getToDate() != null &&
+                dto.getToDate().isBefore(dto.getFromDate())) {
             throw new BadRequestException("To date cannot be before From date");
         }
 
@@ -1606,7 +1661,108 @@ public class TrainingService {
             throw new BadRequestException("Amount spent cannot exceed total amount");
         }
 
-        return cepRepository.findById(dto.getCepId()).map(existing -> {
+        // 👉 Fetch existing attachments
+        List<CepAttachments> existingAttachments =
+                cepAttachmentsRepository.findByCepId(dto.getCepId());
+
+        List<CepAttachments> updatedAttachments = new ArrayList<>();
+
+        // 👉 Folder path
+        String folderName = "CEP_" + dto.getCepId();
+        Path filepath = Paths.get(appStorage, "CEP Attachments", folderName);
+
+        // =========================================================
+        // 👉 1. HANDLE ADD / UPDATE
+        // =========================================================
+        for (CepAttachmentsDTO attachmentsDTO : dto.getCepAttachments()) {
+
+            // Skip empty rows (important)
+            if ((attachmentsDTO.getAttachmentName() == null || attachmentsDTO.getAttachmentName().isBlank())
+                    && (attachmentsDTO.getAttachFile() == null || attachmentsDTO.getAttachFile().isEmpty())
+                    && attachmentsDTO.getAttachmentId() == null) {
+                continue;
+            }
+
+            CepAttachments attach;
+
+            // 👉 EXISTING
+            if (attachmentsDTO.getAttachmentId() != null) {
+
+                attach = existingAttachments.stream()
+                        .filter(a -> a.getAttachmentId().equals(attachmentsDTO.getAttachmentId()))
+                        .findFirst()
+                        .orElseThrow(() -> new BadRequestException("Attachment not found"));
+
+                attach.setModifiedBy(username);
+                attach.setModifiedDate(LocalDateTime.now());
+
+            } else {
+                // 👉 NEW
+                attach = new CepAttachments();
+                attach.setCepId(dto.getCepId());
+                attach.setCreatedBy(username);
+                attach.setCreatedDate(LocalDateTime.now());
+                attach.setIsActive(1);
+            }
+
+            // 👉 Update name
+            attach.setAttachmentName(attachmentsDTO.getAttachmentName());
+
+            // 👉 FILE REPLACEMENT
+            if (attachmentsDTO.getAttachFile() != null &&
+                    !attachmentsDTO.getAttachFile().isEmpty()) {
+
+                // Delete old file if exists
+                if (attach.getAttachFile() != null) {
+                    FileStorageUtil.deleteFileIfExists(filepath, attach.getAttachFile());
+                }
+
+                // Save new file
+                String fileName = attachmentsDTO.getAttachFile().getOriginalFilename();
+
+                FileStorageUtil.saveFile(
+                        filepath,
+                        fileName,
+                        attachmentsDTO.getAttachFile()
+                );
+
+                attach.setAttachFile(fileName);
+            }
+
+            updatedAttachments.add(attach);
+        }
+
+        // =========================================================
+        // 👉 2. HANDLE DELETE (REMOVED FROM UI)
+        // =========================================================
+        List<Long> incomingIds = dto.getCepAttachments().stream()
+                .filter(a -> a.getAttachmentId() != null)
+                .map(CepAttachmentsDTO::getAttachmentId)
+                .toList();
+
+        for (CepAttachments existing : existingAttachments) {
+
+            if (existing.getAttachmentId() != null &&
+                    !incomingIds.contains(existing.getAttachmentId())) {
+
+                // Delete file
+                if (existing.getAttachFile() != null) {
+                    FileStorageUtil.deleteFileIfExists(filepath, existing.getAttachFile());
+                }
+
+                // Delete DB record
+                cepAttachmentsRepository.delete(existing);
+            }
+        }
+
+        // 👉 Save updated & new attachments
+        cepAttachmentsRepository.saveAll(updatedAttachments);
+
+        // =========================================================
+        // 👉 3. UPDATE MAIN CEP
+        // =========================================================
+        return cepRepository.findById(dto.getCepId())
+                .map(existing -> {
                     existing.setModifiedBy(username);
                     existing.setModifiedDate(LocalDateTime.now());
                     cepMapper.partialUpdate(existing, dto);
@@ -1614,7 +1770,6 @@ public class TrainingService {
                 })
                 .map(cepRepository::save)
                 .map(cepMapper::toDto);
-
     }
 
     @Cacheable(value = "distributionCache", key = "#username")
@@ -1639,8 +1794,8 @@ public class TrainingService {
                 data.setEmpDivCode(employeeDTO.getEmpDivCode());
             }
 
-            data.setAoOfficerName(aoEmpDto!=null ? CommonUtil.buildEmployeeName(aoEmpDto, true) : "");
-            data.setRoOfficerName(roEmpDto!=null ? CommonUtil.buildEmployeeName(roEmpDto, true) : "");
+            data.setAoOfficerName(aoEmpDto != null ? CommonUtil.buildEmployeeName(aoEmpDto, true) : "");
+            data.setRoOfficerName(roEmpDto != null ? CommonUtil.buildEmployeeName(roEmpDto, true) : "");
 
         });
 
@@ -1718,5 +1873,143 @@ public class TrainingService {
                 .map(calenderRepository::save)
                 .map(calenderMapper::toDto);
 
+    }
+
+    public CepAttachmentsDTO getCepAttachmentById(Long attachmentId, String username) {
+        log.info("Request to get CEp attachment data for id {} by {}", attachmentId, username);
+
+        CepAttachments entity = cepAttachmentsRepository.findById(attachmentId)
+                .orElseThrow(() -> new NotFoundException("CEP Attachment data not found"));
+
+        CepAttachmentsDTO dto = new CepAttachmentsDTO();
+
+        dto.setCepId(entity.getCepId());
+        dto.setAttachmentId(entity.getAttachmentId());
+        dto.setAttachmentName(entity.getAttachmentName());
+        dto.setExistingFileName(entity.getAttachFile());
+
+        return dto;
+    }
+
+    @Cacheable(value = "journalCache", key = "#username")
+    public List<JournalDTO> getJournalList(String username) {
+        log.info("Request to fetch journal list by {}", username);
+
+        List<Journal> journals = journalRepository.findAllByIsActiveOrderByJournalIdDesc(1);
+        List<JournalDTO> dtoList = journalMapper.toDto(journals);
+
+        Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
+
+        dtoList.forEach(data -> {
+
+            EmployeeDTO empDto = employeeDTOMap.get(data.getEmpId());
+            if (empDto != null) {
+                data.setEmployeeName(CommonUtil.buildEmployeeName(empDto, true));
+                data.setEmpNo(empDto.getEmpNo());
+                data.setDesigCadre(empDto.getDesigCadre());
+            }
+        });
+        return dtoList;
+    }
+
+    @CacheEvict(value = "journalCache", allEntries = true)
+    @Transactional
+    public JournalDTO addJournalData(@Valid JournalDTO dto, String username) {
+        log.info("Request to add journal by {}", username);
+
+        Journal journal = journalMapper.toEntity(dto);
+
+        journal.setCreatedBy(username);
+        journal.setCreatedDate(LocalDateTime.now());
+        journal.setIsActive(1);
+
+        journal = journalRepository.save(journal);
+        return journalMapper.toDto(journal);
+    }
+
+    @CacheEvict(value = "journalCache", allEntries = true)
+    @Transactional
+    public Optional<JournalDTO> editJournalData(@Valid JournalDTO dto, String username) {
+        log.info("Request to update journal for id {} by {}", dto.getJournalId(), username);
+
+        return journalRepository.findById(dto.getJournalId())
+                .map(ex -> {
+                    ex.setModifiedBy(username);
+                    ex.setModifiedDate(LocalDateTime.now());
+                    journalMapper.partialUpdate(ex, dto);
+                    return ex;
+                })
+                .map(journalRepository::save)
+                .map(journalMapper::toDto);
+    }
+
+    @Cacheable(value = "mandatoryTrainingCache", key = "#username")
+    public List<MandatoryTrainingDTO> getMandatoryTrainingList(Long empId, String roleName, String username) {
+        log.info("Request to fetch mandatory training list by {}", username);
+
+        List<MandatoryTraining> mandatoryTrainings = new ArrayList<>();
+
+        if (Stream.of("ROLE_ADMIN", "ROLE_AD_HRT", "ROLE_SA_HRT", "ROLE_DH", "ROLE_DIRECTOR").anyMatch(roleName::equalsIgnoreCase)) {
+            mandatoryTrainings = mandatoryTrainingRepository.findAllByIsActiveOrderByMandatoryTrainingIdDesc(1);
+        } else {
+            mandatoryTrainings = mandatoryTrainingRepository.findAllByParticipantIdAndIsActiveOrderByMandatoryTrainingIdDesc(empId, 1);
+        }
+
+        List<MandatoryTrainingDTO> dtoList = mandatoryTrainingMapper.toDto(mandatoryTrainings);
+
+        Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
+
+        dtoList.forEach(data -> {
+            EmployeeDTO empDto = employeeDTOMap.get(data.getParticipantId());
+            if (empDto != null) {
+                data.setParticipantName(CommonUtil.buildEmployeeName(empDto, true));
+            }
+        });
+        return dtoList;
+    }
+
+
+    @CacheEvict(value = "mandatoryTrainingCache", allEntries = true)
+    @Transactional
+    public MandatoryTrainingDTO addMandatoryTrainingData(@Valid MandatoryTrainingDTO dto, String username) {
+        log.info("Request to add mandatory training by {}", username);
+
+        MandatoryTraining training = mandatoryTrainingMapper.toEntity(dto);
+
+        training.setCreatedBy(username);
+        training.setCreatedDate(LocalDateTime.now());
+        training.setIsActive(1);
+
+        training = mandatoryTrainingRepository.save(training);
+        return mandatoryTrainingMapper.toDto(training);
+    }
+
+
+    @CacheEvict(value = "mandatoryTrainingCache", allEntries = true)
+    @Transactional
+    public Optional<MandatoryTrainingDTO> editMandatoryTrainingData(@Valid MandatoryTrainingDTO dto, String username) {
+        log.info("Request to update mandatory training for id {} by {}", dto.getMandatoryTrainingId(), username);
+
+        return mandatoryTrainingRepository.findById(dto.getMandatoryTrainingId())
+                .map(ex -> {
+                    ex.setModifiedBy(username);
+                    ex.setModifiedDate(LocalDateTime.now());
+                    mandatoryTrainingMapper.partialUpdate(ex, dto);
+                    return ex;
+                })
+                .map(mandatoryTrainingRepository::save)
+                .map(mandatoryTrainingMapper::toDto);
+    }
+
+    public MandatoryTrainingDTO getMandatoryTrainingById(Long trainId, String username) {
+        log.info("Request to fetch mandatory training by id {} by {}", trainId, username);
+
+        if (trainId == null) {
+            throw new NotFoundException("Mandatory training id cannot be null");
+        }
+        MandatoryTraining training = mandatoryTrainingRepository.findById(trainId)
+                .orElseThrow(() -> new NotFoundException("Mandatory training data not found"));
+
+        return mandatoryTrainingMapper.toDto(training);
     }
 }

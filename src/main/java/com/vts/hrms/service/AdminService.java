@@ -1,5 +1,7 @@
 package com.vts.hrms.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vts.hrms.dto.*;
 import com.vts.hrms.entity.*;
 import com.vts.hrms.exception.BadRequestException;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -47,6 +50,10 @@ public class AdminService {
 
     @Value("${labCode}")
     private String labCode;
+
+    @Value("${license}")
+    private String license;
+
     private DateTimeFormatter formatter;
 
     public AdminService(RoleRepository roleRepository, LoginRepository loginRepository, RoleSecurityRepository roleSecurityRepository, MasterClientService masterClient, FormModuleRepository formModuleRepository, FormDetailRepository formDetailRepository, FormRoleAccessRepository formRoleAccessRepository, NotificationRepository notificationRepository, MasterCacheService masterCacheService, AuditStampingRepository auditStampingRepository) {
@@ -610,6 +617,41 @@ public class AdminService {
         }catch(Exception e) {
             log.error("Exception in Update-Password for username {}: {}", username, e.getMessage(), e);
             return 400;
+        }
+    }
+
+
+    public Boolean getLicense() {
+        try {
+            if (license == null || license.isBlank()) {
+                log.warn("License token is empty");
+                return false;
+            }
+
+            String[] parts = license.split("\\.");
+
+            if (parts.length < 2) {
+                log.warn("Invalid JWT format");
+                return false;
+            }
+
+            String payloadJson =
+                    new String(Base64.getUrlDecoder().decode(parts[1]));
+
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode payload = mapper.readTree(payloadJson);
+
+            if (!payload.has("exp")) {
+                log.warn("JWT does not contain exp");
+                return false;
+            }
+
+            long exp = payload.get("exp").asLong();
+            Instant expiryInstant = Instant.ofEpochSecond(exp);
+            return expiryInstant.isAfter(Instant.now());
+        } catch (Exception e) {
+            log.error("License validation failed", e);
+            return false;
         }
     }
 }

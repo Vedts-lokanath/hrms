@@ -97,4 +97,15 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Long> 
             GROUP BY c.organizerId,o.organizer
             """)
     List<RequisitionDashboardDTO> getRequisitionFilterUserDashboard(Long empId, LocalDate startDate, LocalDate endDate);
+
+    @Query("""
+                SELECT r
+                FROM Requisition r
+                WHERE r.isActive = 1
+                  AND r.fromDate >= :fromDate
+                  AND r.toDate <= :toDate
+                ORDER BY r.requisitionId DESC
+            """)
+    List<Requisition> getRequisitionDataByDateRange(@Param("fromDate") LocalDate fromDate,
+                                                    @Param("toDate") LocalDate toDate);
 }
