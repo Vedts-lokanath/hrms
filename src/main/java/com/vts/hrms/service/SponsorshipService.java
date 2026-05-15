@@ -62,7 +62,7 @@ public class SponsorshipService {
     }
 
 
-    @CacheEvict(value = "sponsorshipCache", allEntries = true)
+    @CacheEvict(value = {"sponsorshipCache", "mtechReportCache", "phdReportCache"}, allEntries = true)
     @Transactional
     public SponsorshipDTO addSponsorshipData(@Valid SponsorshipDTO dto, String username) {
         log.info("Request to add sponsorship by {}", username);
@@ -77,7 +77,7 @@ public class SponsorshipService {
     }
 
 
-    @CacheEvict(value = "sponsorshipCache", allEntries = true)
+    @CacheEvict(value = {"sponsorshipCache", "mtechReportCache", "phdReportCache"}, allEntries = true)
     @Transactional
     public Optional<SponsorshipDTO> editSponsorshipData(SponsorshipDTO dto, String username) {
         log.info("Request to edit sponsorship for id {} by {}", dto.getSponsorshipId(), username);

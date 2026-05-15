@@ -18,6 +18,12 @@ public class MandatoryTrainingDTO {
     @NotNull(message = "Participant is required")
     private Long participantId;
     private String participantName;
+    private String empNo;
+    private String empDesigName;
+    private String desigCadre;
+    private String empDivCode;
+    private String email;
+    private String mobileNo;
 
     @NotBlank(message = "Course name is required")
     @Size(max = 255, message = "Course name must not exceed 255 characters")

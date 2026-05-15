@@ -356,6 +356,10 @@ public class TrainingService {
 
         List<RequisitionDTO> dtoList = requisitionMapper.toDto(list);
 
+        List<Journal> journals = journalRepository.findAllByIsActiveOrderByJournalIdDesc(1);
+        Map<Long, Journal> journalMap = journals.stream()
+                        .collect(Collectors.toMap(Journal::getJournalId, Function.identity()));
+
         dtoList.forEach(dto -> {
             EmployeeDTO employeeDTO = employeeMap.get(dto.getInitiatingOfficer());
             Course course = courseMap.get(dto.getCourseId());
@@ -389,6 +393,10 @@ public class TrainingService {
             }
             if (courseType != null) {
                 dto.setCourseType(courseType.getCourseType());
+            }
+            if(dto.getJournalId() != null && dto.getJournalId() > 0){
+                Journal journal = journalMap.get(dto.getJournalId());
+                dto.setTitleOfPaper(journal.getTitleOfPaper());
             }
         });
         return dtoList;
@@ -1814,7 +1822,7 @@ public class TrainingService {
         return distributionMapper.toDto(distribution);
     }
 
-    @CacheEvict(value = "distributionCache", allEntries = true)
+    @CacheEvict(value = {"distributionCache", "hrDistributionReportCache"}, allEntries = true)
     @Transactional
     public DistributionDTO addDistributionData(@Valid DistributionDTO dto, String username) {
         log.info("Request to add Distribution by {}", username);
@@ -1830,7 +1838,7 @@ public class TrainingService {
         return distributionMapper.toDto(distribution);
     }
 
-    @CacheEvict(value = "distributionCache", allEntries = true)
+    @CacheEvict(value = {"distributionCache", "hrDistributionReportCache"}, allEntries = true)
     public Optional<DistributionDTO> editDistributionData(@Valid DistributionDTO dto, String username) {
         log.info("Request to edit distribution id {} by {}", dto.getDistributionId(), username);
 
@@ -1892,10 +1900,17 @@ public class TrainingService {
     }
 
     @Cacheable(value = "journalCache", key = "#username")
-    public List<JournalDTO> getJournalList(String username) {
+    public List<JournalDTO> getJournalList(Long empId, String roleName, String username) {
         log.info("Request to fetch journal list by {}", username);
 
-        List<Journal> journals = journalRepository.findAllByIsActiveOrderByJournalIdDesc(1);
+        List<Journal> journals = new ArrayList<>();
+
+        if("ROLE_USER".equalsIgnoreCase(roleName)){
+            journals = journalRepository.findAllByEmpIdAndIsActiveOrderByJournalIdDesc(empId, 1);
+        }else{
+            journals = journalRepository.findAllByIsActiveOrderByJournalIdDesc(1);
+        }
+
         List<JournalDTO> dtoList = journalMapper.toDto(journals);
 
         Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
@@ -2011,5 +2026,16 @@ public class TrainingService {
                 .orElseThrow(() -> new NotFoundException("Mandatory training data not found"));
 
         return mandatoryTrainingMapper.toDto(training);
+    }
+
+    public List<MandatoryTrainingDTO> getMandatoryTrainingByParticipantId(Long id, String username) {
+        log.info("Request to fetch mandatory training by participant id {} by {}", id, username);
+        if (id == null) {
+            throw new NotFoundException("Participant id cannot be null");
+        }
+        List<MandatoryTraining> trainingList = mandatoryTrainingRepository
+                .findAllByParticipantIdAndIsActiveOrderByMandatoryTrainingIdDesc(id,1);
+
+        return mandatoryTrainingMapper.toDto(trainingList);
     }
 }

@@ -26,4 +26,17 @@ public interface SponsorshipRepository extends JpaRepository<Sponsorship, Long> 
             """)
     List<Sponsorship> getSponsorshipDataByDateRange(@Param("fromDate") LocalDate fromDate,
                                                     @Param("toDate") LocalDate toDate);
+
+    @Query("""
+                SELECT s
+                FROM Sponsorship s
+                WHERE s.degreeType = :degreeType
+                  AND s.fromDate >= :fromDate
+                  AND s.toDate <= :toDate
+                  AND s.isActive = 1
+                ORDER BY s.sponsorshipId DESC
+            """)
+    List<Sponsorship> findByDegreeTypeAndDateRange(@Param("degreeType") String degreeType,
+                                                   @Param("fromDate") LocalDate fromDate,
+                                                   @Param("toDate") LocalDate toDate);
 }

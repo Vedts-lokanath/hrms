@@ -101,10 +101,7 @@ public class MasterService {
         log.info("Fetching employee master");
         return masterClient.getEmployeeMasterList(xApiKey).stream()
                 .filter(e -> labCode != null && labCode.equalsIgnoreCase(e.getLabCode()))
-                .map(emp->{
-                    emp.setEmpName(CommonUtil.buildEmployeeName(emp,false));
-                    return emp;
-                })
+                .peek(emp-> emp.setEmpName(CommonUtil.buildEmployeeName(emp,false)))
                 .toList();
 
     }

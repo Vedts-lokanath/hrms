@@ -1,7 +1,6 @@
 package com.vts.hrms.repository;
 
 import com.vts.hrms.dto.RequisitionDashboardDTO;
-import com.vts.hrms.entity.Feedback;
 import com.vts.hrms.entity.Requisition;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -108,4 +107,17 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Long> 
             """)
     List<Requisition> getRequisitionDataByDateRange(@Param("fromDate") LocalDate fromDate,
                                                     @Param("toDate") LocalDate toDate);
+
+    @Query("""
+                SELECT r
+                FROM Requisition r
+                WHERE r.isActive = 1
+                  AND r.journalId IS NOT NULL
+                  AND r.journalId > 0
+                  AND r.fromDate >= :fromDate
+                  AND r.toDate <= :toDate
+                ORDER BY r.requisitionId DESC
+            """)
+    List<Requisition> findActiveRequisitionsWithJournalId(@Param("fromDate") LocalDate fromDate,
+                                                          @Param("toDate") LocalDate toDate);
 }

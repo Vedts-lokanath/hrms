@@ -4,8 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vts.hrms.dto.*;
 import com.vts.hrms.entity.*;
-import com.vts.hrms.mapper.CepMapper;
-import com.vts.hrms.mapper.RequisitionMapper;
+import com.vts.hrms.mapper.*;
 import com.vts.hrms.repository.*;
 import com.vts.hrms.util.ApiResponse;
 import com.vts.hrms.util.CommonUtil;
@@ -50,6 +49,12 @@ public class ReportService {
     private final SponsorshipRepository sponsorshipRepository;
     private final CepRepository cepRepository;
     private final CepMapper cepMapper;
+    private final SponsorshipMapper sponsorshipMapper;
+    private final DistributionRepository distributionRepository;
+    private final DistributionMapper distributionMapper;
+    private final MandatoryTrainingMapper mandatoryTrainingMapper;
+    private final MandatoryTrainingRepository mandatoryTrainingRepository;
+
 
     @Cacheable(value = "getNominalROllList")
     public List<EmployeeDTO> getNominalRollList(String token) {
@@ -99,7 +104,7 @@ public class ReportService {
     }
 
 
-    public List<RequisitionDTO> getCourseTrainingList(String courseType) {
+    public List<RequisitionDTO> getCourseTrainingList(LocalDate fromDate, LocalDate toDate, String courseType) {
         log.info("Fetching course training data");
 
         Map<Long, EmployeeDTO> employeeMap = masterCacheService.getLongEmployeeDTOMap();
@@ -111,7 +116,7 @@ public class ReportService {
         Map<Long, CourseTypeDTO> typeDTOMap = typeDTOList.stream()
                 .collect(Collectors.toMap(CourseTypeDTO::getCourseTypeId, Function.identity()));
 
-        List<Requisition> list = requisitionRepository.findAllByIsActive(1);
+        List<Requisition> list = requisitionRepository.getRequisitionDataByDateRange(fromDate,toDate);
 
         boolean isTraining = "course".equalsIgnoreCase(courseType);
 
@@ -202,23 +207,77 @@ public class ReportService {
         return dtoList;
     }
 
-    public List<SponsorshipDTO> getMTechData(String username) {
+    @Cacheable(value = "mtechReportCache",key = "#fromDate + '_' + #toDate")
+    public List<SponsorshipDTO> getMTechData(LocalDate fromDate, LocalDate toDate) {
         log.info("Fetching Sponsorship M.Tech list data");
-        return sponsorshipService.getAllSponsorshipList("MTECH", username);
-    }
 
-    public List<SponsorshipDTO> getPhdData(String username) {
-        log.info("Fetching Sponsorship Phd list data");
-        return sponsorshipService.getAllSponsorshipList("PHD", username);
-    }
+        List<Sponsorship> list = sponsorshipRepository.findByDegreeTypeAndDateRange("MTECH",fromDate,toDate);
+        List<SponsorshipDTO> dtoList = sponsorshipMapper.toDto(list);
 
-    public List<DistributionDTO> getHrDistributionData(String username) {
-        log.info("Fetching HR distribution list data");
-
-        List<DistributionDTO> dtoList = trainingService.getAllDistributionsData(username);
-        Map<Long, List<ProjectEmployeeDto>> empProjectMap = masterCacheService.getProjectEmployeeMap();
+        Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
 
         dtoList.forEach(data -> {
+            EmployeeDTO employeeDTO = employeeDTOMap.get(data.getEmpId());
+            if(employeeDTO!=null) {
+                data.setEmpNo(employeeDTO.getEmpNo());
+                data.setEmployeeName(CommonUtil.buildEmployeeName(employeeDTO, false));
+                data.setEmpDesigCode(employeeDTO.getEmpDesigName());
+                data.setDesigCadre(employeeDTO.getDesigCadre());
+                data.setEmpDivCode(employeeDTO.getEmpDivCode());
+            }
+        });
+
+        return dtoList;
+    }
+
+    @Cacheable(value = "phdReportCache",key = "#fromDate + '_' + #toDate")
+    public List<SponsorshipDTO> getPhdData(LocalDate fromDate, LocalDate toDate) {
+        log.info("Fetching Sponsorship Phd list data");
+
+        List<Sponsorship> list = sponsorshipRepository.findByDegreeTypeAndDateRange("PHD",fromDate,toDate);
+        List<SponsorshipDTO> dtoList = sponsorshipMapper.toDto(list);
+
+        Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
+
+        dtoList.forEach(data -> {
+            EmployeeDTO employeeDTO = employeeDTOMap.get(data.getEmpId());
+            if(employeeDTO!=null) {
+                data.setEmpNo(employeeDTO.getEmpNo());
+                data.setEmployeeName(CommonUtil.buildEmployeeName(employeeDTO, false));
+                data.setEmpDesigCode(employeeDTO.getEmpDesigName());
+                data.setDesigCadre(employeeDTO.getDesigCadre());
+                data.setEmpDivCode(employeeDTO.getEmpDivCode());
+            }
+        });
+
+        return dtoList;
+    }
+
+    @Cacheable(value = "hrDistributionReportCache",key = "#fromDate + '_' + #toDate")
+    public List<DistributionDTO> getHrDistributionData(LocalDate fromDate, LocalDate toDate) {
+        log.info("Fetching HR distribution list data");
+
+        List<Distribution> list = distributionRepository.findActiveDistributionsByDateRange(fromDate,toDate);
+        List<DistributionDTO> dtoList = distributionMapper.toDto(list);
+
+        Map<Long, List<ProjectEmployeeDto>> empProjectMap = masterCacheService.getProjectEmployeeMap();
+        Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
+
+        dtoList.forEach(data -> {
+
+            EmployeeDTO employeeDTO = employeeDTOMap.get(data.getEmpId());
+            EmployeeDTO aoEmpDto = employeeDTOMap.get(data.getAoEmpId());
+            EmployeeDTO roEmpDto = employeeDTOMap.get(data.getRoEmpId());
+
+            if (employeeDTO != null) {
+                data.setEmpNo(employeeDTO.getEmpNo());
+                data.setEmployeeName(CommonUtil.buildEmployeeName(employeeDTO, true));
+                data.setDesigCadre(employeeDTO.getDesigCadre());
+                data.setEmpDivCode(employeeDTO.getEmpDivCode());
+            }
+
+            data.setAoOfficerName(aoEmpDto != null ? CommonUtil.buildEmployeeName(aoEmpDto, true) : "");
+            data.setRoOfficerName(roEmpDto != null ? CommonUtil.buildEmployeeName(roEmpDto, true) : "");
 
             List<ProjectEmployeeDto> projectList =
                     empProjectMap.getOrDefault(data.getEmpId(), Collections.emptyList());
@@ -242,10 +301,10 @@ public class ReportService {
         return dtoList;
     }
 
-    public List<AnnualTrainingReportDTO> getAnnualTrainingReport(String username) {
+    public List<AnnualTrainingReportDTO> getAnnualTrainingReport(LocalDate fromDate, LocalDate toDate) {
         log.info("Fetching Annual training report list data");
 
-        List<Requisition> requisitions = requisitionRepository.findAll();
+        List<Requisition> requisitions = requisitionRepository.getRequisitionDataByDateRange(fromDate, toDate);
         List<Course> courses = courseRepository.findAll();
         List<CourseType> courseTypes = courseTypeRepository.findAll();
 
@@ -445,8 +504,8 @@ public class ReportService {
                     }
                 }
 
-                // 7. Seminar/Symposia/Conference/Workshop
-                else if (Stream.of("Seminar", "Symposia", "Conference", "Workshop").anyMatch(type::equalsIgnoreCase)) {
+                // 7. Seminar/Symposium/Conference/Workshop
+                else if (Stream.of("Seminar", "Symposium", "Conference", "Workshop").anyMatch(type::equalsIgnoreCase)) {
 
                     if ("National".equalsIgnoreCase(level)) {
                         dto.setRegistrationRE(dto.getRegistrationRE().add(regFee));
@@ -554,7 +613,7 @@ public class ReportService {
                 cepEmp.add(empId);
             } else if ("Special".equalsIgnoreCase(courseType)) {
                 specialEmp.add(empId);
-            } else if (Stream.of("Seminar", "Symposia", "Conference", "Workshop")
+            } else if (Stream.of("Seminar", "Symposium", "Conference", "Workshop")
                     .anyMatch(courseType::equalsIgnoreCase)) {
                 seminarEmp.add(empId);
             } else if ("Training".equalsIgnoreCase(courseType)
@@ -634,8 +693,8 @@ public class ReportService {
                 specialSet.add(empId);
             }
 
-            // 2. Seminar/Symposia/Conference/Workshop
-            else if (Stream.of("Seminar", "Symposia", "Conference", "Workshop").anyMatch(courseType::equalsIgnoreCase)) {
+            // 2. Seminar/Symposium/Conference/Workshop
+            else if (Stream.of("Seminar", "Symposium", "Conference", "Workshop").anyMatch(courseType::equalsIgnoreCase)) {
 
                 seminarSet.add(empId);
             }
@@ -733,6 +792,83 @@ public class ReportService {
 
     public List<JournalDTO> getResearchPaperIntReport(String username) {
         log.info("Fetching research paper report data");
-        return trainingService.getJournalList(username);
+        return trainingService.getJournalList(0L, "ROLE_ADMIN", username);
+    }
+
+    public List<RequisitionDTO> getResearchPaperDetailReport(LocalDate fromDate, LocalDate toDate, String username) {
+        log.info("Fetching research paper detail report data");
+
+        List<Requisition> requisitions = requisitionRepository.findActiveRequisitionsWithJournalId(fromDate,toDate);
+
+        List<JournalDTO> journalDTOList = trainingService.getJournalList(0L,"ROLE_ADMIN", username);
+        Map<Long, JournalDTO> journalMap = journalDTOList.stream()
+                .collect(Collectors.toMap(JournalDTO::getJournalId, Function.identity()));
+
+        Map<Long, EmployeeDTO> employeeMap = masterCacheService.getLongEmployeeDTOMap();
+        Map<Long, Organizer> organizerMap = masterCacheService.getOrganizerMap();
+        Map<Long, Course> courseMap = masterCacheService.getCourseMap();
+
+        List<CourseTypeDTO> typeDTOList = trainingService.getCourseTypeList(username);
+        Map<Long, CourseTypeDTO> typeDTOMap = typeDTOList.stream()
+                .collect(Collectors.toMap(CourseTypeDTO::getCourseTypeId, Function.identity()));
+
+        return requisitions.stream()
+                .map(requisitionMapper::toDto)
+                .peek(dto -> {
+
+                    JournalDTO journalDTO = journalMap.get(dto.getJournalId());
+                    Course course = courseMap.get(dto.getCourseId());
+                    Organizer organizer = organizerMap.get(course.getOrganizerId());
+                    CourseTypeDTO typeDTO = typeDTOMap.get(course.getCourseTypeId());
+                    EmployeeDTO employeeDTO = employeeMap.get(dto.getInitiatingOfficer());
+
+                    dto.setCourseName(course.getCourseName());
+                    dto.setCourseLevel(course.getCourseLevel());
+                    dto.setCourseType(typeDTO.getCourseType());
+                    dto.setVenue(course.getVenue());
+
+                    dto.setTitleOfPaper(journalDTO.getTitleOfPaper());
+
+                    if (organizer != null) {
+                        dto.setOrganizer(organizer.getOrganizer());
+                        dto.setOrganizerContactName(organizer.getContactName());
+                        dto.setOrganizerPhoneNo(organizer.getPhoneNo());
+                        dto.setOrganizerFaxNo(organizer.getFaxNo());
+                        dto.setOrganizerEmail(organizer.getEmail());
+                    }
+                    if (employeeDTO != null) {
+                        dto.setEmpNo(employeeDTO.getEmpNo());
+                        dto.setInitiatingOfficerName(CommonUtil.buildEmployeeName(employeeDTO, false));
+                        dto.setDesigCadre(employeeDTO.getDesigCadre());
+                        dto.setEmpDesigName(employeeDTO.getEmpDesigName());
+                        dto.setEmpDivCode(employeeDTO.getEmpDivCode());
+                        dto.setEmail(employeeDTO.getEmail());
+                        dto.setMobileNo(employeeDTO.getMobileNo());
+                    }
+                })
+                .toList();
+    }
+
+    public List<MandatoryTrainingDTO> getMandatoryTrainingReport(LocalDate fromDate, LocalDate toDate) {
+        log.info("Fetching mandatory training report data");
+
+        List<MandatoryTraining> mandatoryTrainings = mandatoryTrainingRepository.getTrainingDataByDateRange(fromDate,toDate);
+        List<MandatoryTrainingDTO> dtoList = mandatoryTrainingMapper.toDto(mandatoryTrainings);
+
+        Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
+
+        dtoList.forEach(data -> {
+            EmployeeDTO empDto = employeeDTOMap.get(data.getParticipantId());
+            if (empDto != null) {
+                data.setEmpNo(empDto.getEmpNo());
+                data.setParticipantName(CommonUtil.buildEmployeeName(empDto, false));
+                data.setDesigCadre(empDto.getDesigCadre());
+                data.setEmpDesigName(empDto.getEmpDesigName());
+                data.setEmpDivCode(empDto.getEmpDivCode());
+                data.setEmail(empDto.getEmail());
+                data.setMobileNo(empDto.getMobileNo());
+            }
+        });
+        return dtoList;
     }
 }

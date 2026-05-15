@@ -22,7 +22,7 @@ public class ReportController {
     private final ReportService reportsService;
 
     @GetMapping("/nominal-roll")
-    public ResponseEntity<ApiResponse> getTotalSisDashboardData(@RequestHeader("Authorization") String token) {
+    public ResponseEntity<ApiResponse> getTotalNominalData(@RequestHeader("Authorization") String token) {
         LOG.info(" REST request to fetch nominal roll list");
         List<EmployeeDTO> list = reportsService.getNominalRollList(token);
         return ResponseEntity.ok(
@@ -31,18 +31,18 @@ public class ReportController {
     }
 
     @GetMapping("/course-training")
-    public ResponseEntity<ApiResponse> getCourseTrainingData() {
-        LOG.info(" Request to fetch course training list");
-        List<RequisitionDTO> list = reportsService.getCourseTrainingList("course");
+    public ResponseEntity<ApiResponse> getCourseTrainingData(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate) {
+        LOG.info(" Request to fetch course training list for period {} - {} ", fromDate, toDate);
+        List<RequisitionDTO> list = reportsService.getCourseTrainingList(fromDate, toDate, "course");
         return ResponseEntity.ok(
                 new ApiResponse(true, "Course training list fetched successfully", list)
         );
     }
 
     @GetMapping("/seminar-training")
-    public ResponseEntity<ApiResponse> getSeminarTrainingData() {
-        LOG.info(" Request to fetch seminar training list");
-        List<RequisitionDTO> list = reportsService.getCourseTrainingList("seminar");
+    public ResponseEntity<ApiResponse> getSeminarTrainingData(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate) {
+        LOG.info(" Request to fetch seminar training list for period {} - {} ", fromDate, toDate);
+        List<RequisitionDTO> list = reportsService.getCourseTrainingList(fromDate, toDate, "seminar");
         return ResponseEntity.ok(
                 new ApiResponse(true, "Seminar training list fetched successfully", list)
         );
@@ -58,36 +58,36 @@ public class ReportController {
     }
 
     @GetMapping("/sponsor-mtech")
-    public ResponseEntity<ApiResponse> getMTechData(@RequestHeader String username) {
-        LOG.info(" Request to fetch Sponsorship M.Tech list");
-        List<SponsorshipDTO> list = reportsService.getMTechData(username);
+    public ResponseEntity<ApiResponse> getMTechData(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate) {
+        LOG.info(" Request to fetch Sponsorship M.Tech list for period {} - {} ", fromDate, toDate);
+        List<SponsorshipDTO> list = reportsService.getMTechData(fromDate,toDate);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Sponsorship M.Tech list fetched successfully", list)
         );
     }
 
     @GetMapping("/sponsor-phd")
-    public ResponseEntity<ApiResponse> getPhdData(@RequestHeader String username) {
-        LOG.info(" Request to fetch Sponsorship Phd list");
-        List<SponsorshipDTO> list = reportsService.getPhdData(username);
+    public ResponseEntity<ApiResponse> getPhdData(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate) {
+        LOG.info(" Request to fetch Sponsorship Phd list for period {} - {} ", fromDate, toDate);
+        List<SponsorshipDTO> list = reportsService.getPhdData(fromDate,toDate);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Sponsorship Phd list fetched successfully", list)
         );
     }
 
     @GetMapping("/hr-distribution")
-    public ResponseEntity<ApiResponse> getHrDistributionData(@RequestHeader String username) {
-        LOG.info(" Request to fetch HR distribution list");
-        List<DistributionDTO> list = reportsService.getHrDistributionData(username);
+    public ResponseEntity<ApiResponse> getHrDistributionData(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate) {
+        LOG.info(" Request to fetch HR distribution list for period {} - {} ", fromDate, toDate);
+        List<DistributionDTO> list = reportsService.getHrDistributionData(fromDate,toDate);
         return ResponseEntity.ok(
                 new ApiResponse(true, "HR distribution list fetched successfully", list)
         );
     }
 
     @GetMapping("/annual-training")
-    public ResponseEntity<ApiResponse> getAnnualTrainingReport(@RequestHeader String username) {
-        LOG.info(" Request to fetch annual training report list");
-        List<AnnualTrainingReportDTO> list = reportsService.getAnnualTrainingReport(username);
+    public ResponseEntity<ApiResponse> getAnnualTrainingReport(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate, @RequestHeader String username) {
+        LOG.info(" Request to fetch annual training report list for period {} - {} ", fromDate, toDate);
+        List<AnnualTrainingReportDTO> list = reportsService.getAnnualTrainingReport(fromDate,toDate);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Annual training report list fetched successfully", list)
         );
@@ -126,6 +126,24 @@ public class ReportController {
         List<JournalDTO> data = reportsService.getResearchPaperIntReport(username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Research paper int. report list fetched successfully", data)
+        );
+    }
+
+    @GetMapping("/research-paper")
+    public ResponseEntity<ApiResponse> getResearchPaperDetailReport(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate, @RequestHeader String username) {
+        LOG.info(" Request to fetch research paper detail report list for period {} - {}", fromDate, toDate);
+        List<RequisitionDTO> data = reportsService.getResearchPaperDetailReport(fromDate,toDate,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Research paper detail report list fetched successfully", data)
+        );
+    }
+
+    @GetMapping("/mandatory-training")
+    public ResponseEntity<ApiResponse> getMandatoryTrainingReport(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate) {
+        LOG.info(" Request to fetch mandatory training report list for period {} - {}", fromDate, toDate);
+        List<MandatoryTrainingDTO> data = reportsService.getMandatoryTrainingReport(fromDate,toDate);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Mandatory training report list fetched successfully", data)
         );
     }
 

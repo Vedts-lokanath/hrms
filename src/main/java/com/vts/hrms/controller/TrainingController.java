@@ -583,8 +583,8 @@ public class TrainingController {
     }
 
     @GetMapping(value = "/journal")
-    public ResponseEntity<ApiResponse> getJournalList(@RequestHeader String username) {
-        List<JournalDTO> list = trainingService.getJournalList(username);
+    public ResponseEntity<ApiResponse> getJournalList(@RequestParam Long empId, @RequestParam String roleName, @RequestHeader String username) {
+        List<JournalDTO> list = trainingService.getJournalList(empId, roleName, username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Journal list fetched successfully", list)
         );
@@ -633,6 +633,14 @@ public class TrainingController {
     @GetMapping(value = "/mandatoryTrainingById/{id}")
     public ResponseEntity<ApiResponse> getMandatoryTrainingById(@PathVariable Long id, @RequestHeader String username) {
         MandatoryTrainingDTO list = trainingService.getMandatoryTrainingById(id,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Mandatory training data fetched successfully", list)
+        );
+    }
+
+    @GetMapping("/mandatory-training/participant/{id}")
+    public ResponseEntity<ApiResponse> getMandatoryTrainingByParticipantId(@PathVariable Long id, @RequestHeader String username) {
+        List<MandatoryTrainingDTO> list = trainingService.getMandatoryTrainingByParticipantId(id,username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Mandatory training data fetched successfully", list)
         );

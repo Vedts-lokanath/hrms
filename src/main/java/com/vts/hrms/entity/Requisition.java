@@ -30,6 +30,9 @@ public class Requisition implements Serializable {
     @Column(name = "course_id", nullable = false)
     private Long courseId;
 
+    @Column(name = "journal_id")
+    private Long journalId;
+
     @NotNull
     @Column(name = "initiating_officer", nullable = false)
     private Long initiatingOfficer;
