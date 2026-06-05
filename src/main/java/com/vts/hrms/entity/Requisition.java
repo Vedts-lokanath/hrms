@@ -30,6 +30,9 @@ public class Requisition implements Serializable {
     @Column(name = "course_id", nullable = false)
     private Long courseId;
 
+    @Column(name = "journal_id")
+    private Long journalId;
+
     @NotNull
     @Column(name = "initiating_officer", nullable = false)
     private Long initiatingOfficer;
@@ -61,6 +64,10 @@ public class Requisition implements Serializable {
     @Column(name = "is_submitted", length = 1)
     private String isSubmitted;
 
+    @Size(max = 1)
+    @Column(name = "is_paper_present", length = 1)
+    private String isPaperPresent;
+
     @Column(name = "file_ecs")
     private String fileEcs;
 
@@ -76,8 +83,20 @@ public class Requisition implements Serializable {
     @Column(name = "file_brochure")
     private String fileBrochure;
 
+    @Column(name = "file_committee_approval")
+    private String fileCommitteeApproval;
+
+    @Column(name = "file_acceptance_letter")
+    private String fileAcceptanceLetter;
+
+    @Column(name = "file_paper")
+    private String filePaper;
+
     @Column(name = "reason")
     private String reason;
+
+    @Column(name = "is_mandatory")
+    private String isMandatory;
 
     @NotNull
     @Column(name = "is_active", nullable = false)

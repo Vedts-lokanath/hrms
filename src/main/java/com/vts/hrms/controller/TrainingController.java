@@ -180,7 +180,7 @@ public class TrainingController {
 
     @GetMapping(value = "/requisition")
     public ResponseEntity<ApiResponse> getRequisitionList(@RequestParam Long empId, @RequestParam String roleName, @RequestHeader String username) {
-        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName, username);
+        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName, username, "N");
 
         return ResponseEntity.ok(
                 new ApiResponse(true, "Requisition list fetched", list)
@@ -491,11 +491,10 @@ public class TrainingController {
         );
     }
 
-    @PostMapping(value = "/add-cep")
+    @PostMapping(value = "/add-cep", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse> addCepData(
-            @Valid @RequestBody CepDTO dto,
-            @RequestHeader String username)
-    {
+            @Valid @ModelAttribute CepDTO dto,
+            @RequestHeader String username) throws IOException {
         CepDTO data = trainingService.addCepData(dto, username);
 
         return ResponseEntity.ok(
@@ -503,13 +502,44 @@ public class TrainingController {
         );
     }
 
-    @PutMapping(value = "/edit-cep")
-    public ResponseEntity<ApiResponse> editCepData(@Valid @RequestBody CepDTO dto, @RequestHeader String Username )
-    {
-        Optional<CepDTO> list=trainingService.editCEPData(dto, Username);
+    @PutMapping(value = "/edit-cep", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse> editCepData(@Valid @ModelAttribute CepDTO dto, @RequestHeader String Username ) throws IOException {
+        Optional<CepDTO> list = trainingService.editCEPData(dto, Username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "CEP data Updated  successfully", list)
         );
+    }
+
+    @GetMapping(value = "/cep-file/{attachmentId}")
+    public ResponseEntity<Resource> downloadRequisitionFile(@PathVariable Long attachmentId, @RequestHeader String username) {
+        try {
+
+            CepAttachmentsDTO attachment = trainingService.getCepAttachmentById(attachmentId, username);
+            String folderName = "CEP_" + attachment.getCepId();
+            Path filePath = Paths.get(appStorage, "CEP Attachments", folderName, attachment.getExistingFileName());
+
+            if (!Files.exists(filePath)) {
+                return ResponseEntity.notFound().build();
+            }
+
+            String contentType = Files.probeContentType(filePath);
+
+            // Fallback content type
+            if (contentType == null) {
+                contentType = "application/octet-stream";
+            }
+
+            Resource resource = new UrlResource(filePath.toUri());
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + attachment.getExistingFileName() + "\"")
+                    .body(resource);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
 
@@ -549,6 +579,55 @@ public class TrainingController {
       Optional<DistributionDTO> data=trainingService.editDistributionData(dto,Username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Distribution Updated successfully", data)
+        );
+    }
+
+    @GetMapping(value = "/journal")
+    public ResponseEntity<ApiResponse> getJournalList(@RequestParam Long empId, @RequestParam String roleName, @RequestHeader String username) {
+        List<JournalDTO> list = trainingService.getJournalList(empId, roleName, username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Journal list fetched successfully", list)
+        );
+    }
+
+    @PostMapping(value = "/add-journal")
+    public ResponseEntity<ApiResponse> addJournalData(@Valid @RequestBody JournalDTO dto, @RequestHeader String username) {
+        JournalDTO data = trainingService.addJournalData(dto, username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Journal data added successfully", data)
+        );
+    }
+
+    @PutMapping(value = "/edit-journal")
+    public ResponseEntity<ApiResponse> editJournalData(@Valid @RequestBody JournalDTO dto, @RequestHeader String Username ) {
+        Optional<JournalDTO> list = trainingService.editJournalData(dto, Username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Journal data Updated successfully", list)
+        );
+    }
+
+    @GetMapping(value = "/mandatory-training")
+    public ResponseEntity<ApiResponse> getMandatoryTrainingList(@RequestParam Long empId, @RequestParam String roleName, @RequestHeader String username) {
+        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName, username, "Y");
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Requisition of mandatory training list fetched", list)
+        );
+    }
+
+    @PostMapping(value = "/accept-training")
+    public ResponseEntity<ApiResponse> acceptMandatoryTraining(@RequestBody RequisitionDTO dto, @RequestHeader String username) {
+        RequisitionDTO data = trainingService.acceptMandatoryTraining(dto, username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Mandatory training accepted successfully", data)
+        );
+    }
+
+    @GetMapping("/mandatory-training/participant/{id}")
+    public ResponseEntity<ApiResponse> getMandatoryTrainingByParticipantId(@PathVariable Long id, @RequestHeader String username) {
+        List<RequisitionDTO> list = trainingService.getMandatoryTrainingByParticipantId(id,username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Mandatory training data fetched successfully", list)
         );
     }
 

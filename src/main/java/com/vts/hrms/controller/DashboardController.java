@@ -5,7 +5,6 @@ import com.vts.hrms.dto.RequisitionDTO;
 import com.vts.hrms.dto.RequisitionDashboardDTO;
 import com.vts.hrms.service.DashboardService;
 import com.vts.hrms.service.TrainingService;
-import com.vts.hrms.util.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -58,7 +57,7 @@ public class DashboardController {
     @GetMapping(value = "/requisition-list")
     public ResponseEntity<List<RequisitionDTO>> getRequisitionList(@RequestParam Long empId, @RequestParam String roleName,
                                                                    @RequestHeader(value = "username", required = false) String username) {
-        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName, username);
+        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName, username, "N");
 
         return ResponseEntity.ok(list);
     }
