@@ -57,7 +57,7 @@ public class DashboardController {
     @GetMapping(value = "/requisition-list")
     public ResponseEntity<List<RequisitionDTO>> getRequisitionList(@RequestParam Long empId, @RequestParam String roleName,
                                                                    @RequestHeader(value = "username", required = false) String username) {
-        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName, username, "N");
+        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName,null,null, null,username, "N");
 
         return ResponseEntity.ok(list);
     }

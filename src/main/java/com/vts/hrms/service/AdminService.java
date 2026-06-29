@@ -6,6 +6,7 @@ import com.vts.hrms.dto.*;
 import com.vts.hrms.entity.*;
 import com.vts.hrms.exception.BadRequestException;
 import com.vts.hrms.exception.NotFoundException;
+import com.vts.hrms.mapper.HandingOverMapper;
 import com.vts.hrms.repository.*;
 import com.vts.hrms.util.CommonUtil;
 import org.slf4j.Logger;
@@ -17,8 +18,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Date;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -43,6 +42,8 @@ public class AdminService {
     private final NotificationRepository notificationRepository;
     private final MasterCacheService masterCacheService;
     private final AuditStampingRepository auditStampingRepository;
+    private final HandingOverRepository handingOverRepository;
+    private final HandingOverMapper handingOverMapper;
 
 
     @Value("${x_api_key}")
@@ -56,7 +57,7 @@ public class AdminService {
 
     private DateTimeFormatter formatter;
 
-    public AdminService(RoleRepository roleRepository, LoginRepository loginRepository, RoleSecurityRepository roleSecurityRepository, MasterClientService masterClient, FormModuleRepository formModuleRepository, FormDetailRepository formDetailRepository, FormRoleAccessRepository formRoleAccessRepository, NotificationRepository notificationRepository, MasterCacheService masterCacheService, AuditStampingRepository auditStampingRepository) {
+    public AdminService(RoleRepository roleRepository, LoginRepository loginRepository, RoleSecurityRepository roleSecurityRepository, MasterClientService masterClient, FormModuleRepository formModuleRepository, FormDetailRepository formDetailRepository, FormRoleAccessRepository formRoleAccessRepository, NotificationRepository notificationRepository, MasterCacheService masterCacheService, AuditStampingRepository auditStampingRepository, HandingOverRepository handingOverRepository, HandingOverMapper handingOverMapper) {
         this.roleRepository = roleRepository;
         this.loginRepository = loginRepository;
         this.roleSecurityRepository = roleSecurityRepository;
@@ -67,6 +68,8 @@ public class AdminService {
         this.notificationRepository = notificationRepository;
         this.masterCacheService = masterCacheService;
         this.auditStampingRepository = auditStampingRepository;
+        this.handingOverRepository = handingOverRepository;
+        this.handingOverMapper = handingOverMapper;
     }
 
     @Cacheable(value = "roleList")
@@ -663,6 +666,80 @@ public class AdminService {
             log.error("Error while changing the password: {}", e.getMessage(), e);
             return 400;
         }
+    }
+
+    public List<HandingOverDTO> getHandingOverList(String username, LocalDate fromDate, LocalDate toDate) {
+        log.info("Request to getHandingOverList list by username {}", username);
+        List<HandingOverDTO> list = handingOverRepository
+                .findAllByFromDateBetween(fromDate, toDate)
+                .stream()
+                .map(handingOverMapper::toDto)
+                .toList();
+
+        if (list.isEmpty()) {
+            return list;
+        }
+
+        Map<Long, EmployeeDTO> employeeMap = masterCacheService.getLongEmployeeDTOMap();
+
+        for (HandingOverDTO dto : list) {
+
+            EmployeeDTO fromEmp = employeeMap.get(dto.getFromEmpId());
+            EmployeeDTO toEmp = employeeMap.get(dto.getToEmpId());
+            if (fromEmp != null) {
+                dto.setFromEmpName(CommonUtil.buildEmployeeName(fromEmp, true));
+            }
+            if (toEmp != null) {
+                dto.setToEmpName(CommonUtil.buildEmployeeName(toEmp, true));
+            }
+        }
+        System.out.println(list.toString());
+        return list;
+    }
+
+    public boolean existOverlappingDateRange(HandingOverDTO dto, String action){
+        Long handingOverId = action.equalsIgnoreCase("update") ? dto.getHandingOverId() : null;
+        return handingOverRepository.existsOverlappingDateRange(handingOverId, dto.getFromEmpId(), dto.getFromDate(), dto.getToDate());
+    }
+
+    public HandingOverDTO insertHandingOver(HandingOverDTO dto, String username) {
+
+        HandingOver handingOver = handingOverMapper.toEntity(dto);
+        handingOver.setCreatedBy(username);
+        handingOver.setCreatedDate(LocalDateTime.now());
+        handingOver.setIsActive(1);
+        handingOver = handingOverRepository.save(handingOver);
+        return handingOverMapper.toDto(handingOver);
+    }
+
+    public Optional<HandingOverDTO> updateHandingOver(HandingOverDTO dto, String username) {
+        log.info("Request to update Handing Over for id {} by {}", dto.getHandingOverId(), username);
+        return handingOverRepository
+                .findById(dto.getHandingOverId())
+                .map(existingData -> {
+                    existingData.setModifiedBy(username);
+                    existingData.setModifiedDate(LocalDateTime.now());
+                    handingOverMapper.partialUpdate(existingData, dto);
+                    return existingData;
+                })
+                .map(handingOverRepository::save)
+                .map(handingOverMapper::toDto);
+    }
+
+
+    public Optional<HandingOverDTO> revokeHandingOver(Long handingOverId, String username) {
+        log.info("Request to revoke Handing Over for id {} by {}", handingOverId, username);
+
+        return handingOverRepository.findById(handingOverId)
+                .map(existingData -> {
+                    existingData.setModifiedBy(username);
+                    existingData.setModifiedDate(LocalDateTime.now());
+                    existingData.setIsActive(0);
+
+                    return existingData;
+                })
+                .map(handingOverRepository::save)
+                .map(handingOverMapper::toDto);
     }
 }
 

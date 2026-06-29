@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface RequisitionRepository extends JpaRepository<Requisition, Long> {
@@ -21,15 +23,15 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Long> 
                 SELECT DISTINCT r
                 FROM Requisition r
                 JOIN RequisitionTransaction t
-                    ON r.requisitionId = t.requisitionId
-                WHERE t.actionTo = :empId
+                   ON r.requisitionId = t.requisitionId
+                  WHERE t.actionTo IN :empIds
                   AND r.status=t.statusCode
                   AND t.statusCode IN :statusCodes
                   AND t.isActive = 1
                   AND r.isActive = 1
             """)
     List<Requisition> findApprovalList(
-            @Param("empId") Long empId,
+            @Param("empIds") List<Long> empIds,
             @Param("statusCodes") List<String> statusCodes
     );
 
@@ -120,5 +122,7 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Long> 
             """)
     List<Requisition> findActiveRequisitionsWithJournalId(@Param("fromDate") LocalDate fromDate,
                                                           @Param("toDate") LocalDate toDate);
+
+    List<Requisition> findAllByRequisitionIdIn(Collection<Long> requisitionIds);
 
 }

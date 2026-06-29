@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -354,6 +355,47 @@ public class AdminController {
         changePasswordDTO.setUsername(username);
         Integer count = adminService.changePasswordForAllApplications(token, username, changePasswordDTO);
         return String.valueOf(count);
+    }
+
+    @GetMapping(value = "/handing-over")
+    public ResponseEntity<ApiResponse> getHandingOverList(@RequestHeader String username, @RequestParam LocalDate fromDate, @RequestParam LocalDate toDate) {
+        LOG.info(" Inside getHandingOverList user :{}, fromDate:{}, toDate:{}",username, fromDate, toDate);
+        List<HandingOverDTO> list = adminService.getHandingOverList(username, fromDate, toDate);
+        return ResponseEntity.ok(new ApiResponse(true, "Handing Over list fetched", list));
+    }
+
+    @PostMapping(value = "/add-handing-over")
+    public ResponseEntity<ApiResponse> insertHandingOver(@RequestBody HandingOverDTO dto, @RequestHeader String username) {
+        if(adminService.existOverlappingDateRange(dto, "insert")){
+            return ResponseEntity.ok(
+                    new ApiResponse(false, "A handing over record already exists for the selected period.", null)
+            );
+        }
+        HandingOverDTO data = adminService.insertHandingOver(dto, username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Handing Over added successfully", data)
+        );
+    }
+
+    @PutMapping(value = "/update-handing-over")
+    public ResponseEntity<ApiResponse> updateHandingOver(@RequestBody HandingOverDTO dto, @RequestHeader String username) {
+        if(adminService.existOverlappingDateRange(dto, "update")){
+            return ResponseEntity.ok(
+                    new ApiResponse(false, "A handing over record already exists for the selected period.", null)
+            );
+        }
+        Optional<HandingOverDTO> data = adminService.updateHandingOver(dto, username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Handing Over updated successfully", data)
+        );
+    }
+
+    @PutMapping(value = "/revoke-handing-over")
+    public ResponseEntity<ApiResponse> revokeHandingOver(@RequestParam Long handingOverId, @RequestHeader String username) {
+        Optional<HandingOverDTO> data = adminService.revokeHandingOver(handingOverId, username);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Handing Over revoked successfully", data)
+        );
     }
 
 }

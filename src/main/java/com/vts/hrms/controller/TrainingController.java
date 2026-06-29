@@ -179,8 +179,8 @@ public class TrainingController {
     }
 
     @GetMapping(value = "/requisition")
-    public ResponseEntity<ApiResponse> getRequisitionList(@RequestParam Long empId, @RequestParam String roleName, @RequestHeader String username) {
-        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName, username, "N");
+    public ResponseEntity<ApiResponse> getRequisitionList(@RequestParam Long empId, @RequestParam String roleName,@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate, @RequestParam(required = false) Long selectedEmployeeId, @RequestHeader String username) {
+        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName, fromDate, toDate, selectedEmployeeId,username, "N");
 
         return ResponseEntity.ok(
                 new ApiResponse(true, "Requisition list fetched", list)
@@ -441,8 +441,8 @@ public class TrainingController {
     }
 
     @GetMapping(value = "/req-approved-list")
-    public ResponseEntity<ApiResponse> getRequisitionApprovedList(@RequestParam String roleName, @RequestHeader String username) {
-        List<RequisitionDTO> list = trainingService.getRequisitionApprovedList(roleName,username);
+    public ResponseEntity<ApiResponse> getRequisitionApprovedList(@RequestParam Long empId, @RequestHeader String username) {
+        List<RequisitionDTO> list = trainingService.getRequisitionApprovedList(empId,username);
 
         return ResponseEntity.ok(
                 new ApiResponse(true, "Requisition approved list fetched", list)
@@ -608,7 +608,7 @@ public class TrainingController {
 
     @GetMapping(value = "/mandatory-training")
     public ResponseEntity<ApiResponse> getMandatoryTrainingList(@RequestParam Long empId, @RequestParam String roleName, @RequestHeader String username) {
-        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName, username, "Y");
+        List<RequisitionDTO> list = trainingService.getRequisitionList(empId, roleName, null, null ,null, username, "Y");
 
         return ResponseEntity.ok(
                 new ApiResponse(true, "Requisition of mandatory training list fetched", list)
@@ -628,6 +628,22 @@ public class TrainingController {
         List<RequisitionDTO> list = trainingService.getMandatoryTrainingByParticipantId(id,username);
         return ResponseEntity.ok(
                 new ApiResponse(true, "Mandatory training data fetched successfully", list)
+        );
+    }
+
+    @GetMapping(value = "/approved-list-byEmpId")
+    public ResponseEntity<ApiResponse> getApprovedListByEmpId(@RequestParam Long empId, @RequestParam LocalDate fromDate, @RequestParam LocalDate toDate) {
+        List<RequisitionDTO> list = trainingService.getApprovedListByEmpId(empId,fromDate, toDate);
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Role wise requisition approved list fetched successfully", list)
+        );
+    }
+
+    @GetMapping("/approval-type")
+    public ResponseEntity<String> getApprovalType( @RequestParam Long empId) {
+
+        return ResponseEntity.ok(
+                trainingService.getApprovalType(empId)
         );
     }
 

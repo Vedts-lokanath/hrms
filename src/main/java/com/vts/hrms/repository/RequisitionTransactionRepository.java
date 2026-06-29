@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface RequisitionTransactionRepository extends JpaRepository<RequisitionTransaction, Long> {
@@ -34,6 +36,13 @@ public interface RequisitionTransactionRepository extends JpaRepository<Requisit
 
     List<RequisitionTransaction> findByRequisitionIdAndIsActiveOrderByActionDateDesc(Long requisitionId, int isActive);
 
-    List<RequisitionTransaction> findAllByActionToAndStatusCodeInAndIsActive(Long empId, List<String> statusCodes, int i);
+    List<RequisitionTransaction> findAllByActionToInAndStatusCodeInAndIsActive(List<Long> empIds, List<String> statusCodes, int i);
+
+    @Query("""
+    SELECT r FROM RequisitionTransaction r
+    WHERE r.actionBy = :empId AND r.statusCode IN :statusCodes AND r.actionDate BETWEEN :fromDate AND :toDate ORDER BY actionDate
+    """)
+    List<RequisitionTransaction> findTransactionsByEmployeeAndDateRange(Long empId, LocalDateTime fromDate, LocalDateTime toDate, List<String> statusCodes);
+
 
 }

@@ -3,8 +3,6 @@ package com.vts.hrms.service;
 import com.vts.hrms.dto.*;
 import com.vts.hrms.entity.*;
 import com.vts.hrms.entity.Calendar;
-import com.vts.hrms.entity.Course;
-import com.vts.hrms.entity.Requisition;
 import com.vts.hrms.exception.BadRequestException;
 import com.vts.hrms.exception.NotFoundException;
 import com.vts.hrms.mapper.*;
@@ -28,7 +26,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -75,9 +75,10 @@ public class TrainingService {
     private final CepAttachmentsRepository cepAttachmentsRepository;
     private final JournalMapper journalMapper;
     private final JournalRepository journalRepository;
+    private final HandingOverRepository handingOverRepository;
 
 
-    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, OrganizerMapper organizerMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, CourseMapper courseMapper, CourseRepository courseRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository, FeedbackMapper feedbackMapper, FeedbackRepository feedbackRepository, RequisitionTransactionRepository transactionRepository, MasterCacheService masterCacheService, NotificationRepository notificationRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, RequisitionSequenceRepository sequenceRepository, EvaluationRepository evaluationRepository, EligibilityMapper eligibilityMapper, EligibilityRepository eligibilityRepository, CourseTypeRepository courseTypeRepository, LoginRepository loginRepository, CepRepository cepRepository, CepMapper cepMapper, DistributionRepository distributionRepository, DistributionMapper distributionMapper, CepAttachmentsRepository cepAttachmentsRepository, JournalMapper journalMapper, JournalRepository journalRepository) {
+    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, OrganizerMapper organizerMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, CourseMapper courseMapper, CourseRepository courseRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository, FeedbackMapper feedbackMapper, FeedbackRepository feedbackRepository, RequisitionTransactionRepository transactionRepository, MasterCacheService masterCacheService, NotificationRepository notificationRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, RequisitionSequenceRepository sequenceRepository, EvaluationRepository evaluationRepository, EligibilityMapper eligibilityMapper, EligibilityRepository eligibilityRepository, CourseTypeRepository courseTypeRepository, LoginRepository loginRepository, CepRepository cepRepository, CepMapper cepMapper, DistributionRepository distributionRepository, DistributionMapper distributionMapper, CepAttachmentsRepository cepAttachmentsRepository, JournalMapper journalMapper, JournalRepository journalRepository, HandingOverRepository handingOverRepository) {
         this.masterClient = masterClient;
         this.organizerRepository = organizerRepository;
         this.organizerMapper = organizerMapper;
@@ -106,6 +107,7 @@ public class TrainingService {
         this.cepAttachmentsRepository = cepAttachmentsRepository;
         this.journalMapper = journalMapper;
         this.journalRepository = journalRepository;
+        this.handingOverRepository = handingOverRepository;
     }
 
     @Transactional(readOnly = true)
@@ -302,7 +304,7 @@ public class TrainingService {
     }
 
     @Transactional(readOnly = true)
-    public List<RequisitionDTO> getRequisitionList(Long empId, String roleName, String username, String isMandatory) {
+    public List<RequisitionDTO> getRequisitionList(Long empId, String roleName, LocalDate fromDate, LocalDate toDate, Long selectedEmployeeId ,String username, String isMandatory) {
         log.info("Requisition list fetched for role {} by {}", roleName, username);
 
         List<Requisition> list = new ArrayList<>();
@@ -349,6 +351,18 @@ public class TrainingService {
 
             list = requisitionRepository
                     .findAllByInitiatingOfficerAndIsActiveOrderByRequisitionIdDesc(empId, 1);
+        }
+
+        if (fromDate != null && toDate != null) { // filtering as per date for requisition list page
+            list = list.stream()
+                    .filter(r -> r.getFromDate() != null
+                            && !r.getFromDate().isBefore(fromDate)
+                            && !r.getFromDate().isAfter(toDate))
+                    .toList();
+            if(selectedEmployeeId != null && selectedEmployeeId >0){ // for particular employee filters in list page
+                list = list.stream()
+                        .filter(r-> Objects.equals(r.getInitiatingOfficer(), selectedEmployeeId)).toList();
+            }
         }
 
         List<RequisitionDTO> dtoList = requisitionMapper.toDto(list);
@@ -923,7 +937,14 @@ public class TrainingService {
 
         List<String> statusCodes = List.of("AF", "SF", "AR", "AS", "CA", "FA");
 
-        List<Requisition> requisitionList = requisitionRepository.findApprovalList(empId, statusCodes);
+        Set<Long> fromEmpIds = handingOverRepository.findByToEmpIdAndToDateGreaterThanEqualAndIsActive(empId, LocalDate.now(), 1)
+                .stream().map(HandingOver::getFromEmpId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        fromEmpIds.add(empId);
+
+        List<Long> empIds = fromEmpIds.stream().toList();
+
+        List<Requisition> requisitionList = requisitionRepository.findApprovalList(empIds, statusCodes);
 
         if (requisitionList.isEmpty()) {
             return Collections.emptyList();
@@ -939,7 +960,7 @@ public class TrainingService {
         Map<Long, EmployeeDTO> employeeMap = masterCacheService.getLongEmployeeDTOMap();
 
         List<RequisitionTransaction> transactions =
-                transactionRepository.findAllByActionToAndStatusCodeInAndIsActive(empId, statusCodes, 1);
+                transactionRepository.findAllByActionToInAndStatusCodeInAndIsActive(empIds, statusCodes, 1);
 
         // Keep latest transaction per requisition
         Map<Long, RequisitionTransaction> transactionMap =
@@ -1381,18 +1402,59 @@ public class TrainingService {
                 }).toList();
     }
 
-    public List<RequisitionDTO> getRequisitionApprovedList(String roleName, String username) {
+    public List<RequisitionDTO> getRequisitionApprovedList(Long empId, String username) {
         log.info("Requisition approved list fetched by {}", username);
 
-        List<Requisition> list = new ArrayList<>();
+        LocalDate today = LocalDate.now();
 
-        if (roleName.equalsIgnoreCase("ROLE_SA_HRT")) {
-            List<String> statusCodes = Arrays.asList("AV", "DA");
-            list = requisitionRepository.findAllByStatusInAndIsActive(statusCodes, 1);
+        // SA_HRT Authorities
+        Set<Long> saHrtEmpIds = signRoleAuthorityRepository
+                .findBySignAuthRole("SA-HRT")
+                .stream()
+                .map(SignRoleAuthorityDTO::getEmpId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // Director
+        LoginEmployeeDto directorEmp =
+                loginRepository.findEmployeeByRoleName("ROLE_DIRECTOR");
+
+        Long directorEmpId =
+                directorEmp != null ? directorEmp.getEmpId() : null;
+
+        // Active handovers received by current employee
+        Set<Long> handedOverFromEmpIds = handingOverRepository
+                .findByToEmpIdAndToDateGreaterThanEqualAndIsActive(
+                        empId,
+                        today,
+                        1)
+                .stream()
+                .map(HandingOver::getFromEmpId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        boolean isSAHRT =
+                saHrtEmpIds.contains(empId)
+                        || handedOverFromEmpIds.stream()
+                        .anyMatch(saHrtEmpIds::contains);
+
+        boolean isDirector =
+                Objects.equals(empId, directorEmpId)
+                        || handedOverFromEmpIds.contains(directorEmpId);
+
+        List<String> statusCodes;
+
+        if (isSAHRT) {
+            statusCodes = Arrays.asList("AV", "DA");
+        } else if (isDirector) {
+            statusCodes = Arrays.asList("AD", "FC");
         } else {
-            List<String> statusCodes = Arrays.asList("AD", "FC");
-            list = requisitionRepository.findAllByStatusInAndIsActive(statusCodes, 1);
+            throw new RuntimeException("Access Denied");
         }
+
+        List<Requisition> list = requisitionRepository.findAllByStatusInAndIsActive(statusCodes, 1);
+
+
         List<RequisitionDTO> dtoList = requisitionMapper.toDto(list);
 
         Map<String, Status> statusMap = masterCacheService.getStatusMap();
@@ -1986,13 +2048,125 @@ public class TrainingService {
         }
 
         Map<Long, Course> courseMap = masterCacheService.getCourseMap();
-        List<Requisition> list = requisitionRepository.findAllByInitiatingOfficerAndIsActiveOrderByRequisitionIdDesc(id,1);
+        List<Requisition> list = requisitionRepository.findAllByInitiatingOfficerAndIsActiveOrderByRequisitionIdDesc(id, 1);
 
         List<RequisitionDTO> dtoList = requisitionMapper.toDto(list);
-        dtoList.forEach(data->{
+        dtoList.forEach(data -> {
             Course course = courseMap.get(data.getCourseId());
-            if(course!=null) data.setCourseName(course.getCourseName());
+            if (course != null) data.setCourseName(course.getCourseName());
         });
         return dtoList;
+    }
+
+    public List<RequisitionDTO> getApprovedListByEmpId(Long empId, LocalDate fromDate, LocalDate toDate) {
+
+        log.info("Request to fetch getRoleWiseApprovedList empId: {}, fromDate: {}, toDate: {}", empId, fromDate, toDate);
+
+        List<RequisitionTransaction> transListByEmpId =
+                transactionRepository.findTransactionsByEmployeeAndDateRange(empId, fromDate.atStartOfDay(), toDate.atTime(LocalTime.MAX),List.of("AR", "AV", "AS", "CA"));
+
+        Map<Long, RequisitionTransaction> transactionMap = transListByEmpId.stream()
+                .collect(Collectors.toMap(
+                        RequisitionTransaction::getRequisitionId,
+                        Function.identity(),
+                        BinaryOperator.maxBy(
+                                Comparator.comparing(RequisitionTransaction::getTransactionId)
+                        )
+                ));
+
+        Set<Long> requisitionIds = transListByEmpId
+                .stream()
+                .map(RequisitionTransaction::getRequisitionId)
+                .collect(Collectors.toSet());
+
+        if (requisitionIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Requisition> requisitionList = requisitionRepository.findAllByRequisitionIdIn(requisitionIds);
+
+        if (requisitionList.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<RequisitionDTO> dtoList = requisitionMapper.toDto(requisitionList);
+        // Fetch master data
+
+        Map<String, Status> statusMap = masterCacheService.getStatusMap();
+        Map<Long, Organizer> organizerMap = masterCacheService.getOrganizerMap();
+        Map<Long, Course> courseMap = masterCacheService.getCourseMap();
+
+
+        for (RequisitionDTO dto : dtoList) {
+
+            // Course + Organizer
+            Course course = courseMap.get(dto.getCourseId());
+            if (course != null) {
+                dto.setCourseName(course.getCourseName());
+                Organizer organizer = organizerMap.get(course.getOrganizerId());
+                if (organizer != null) {
+                    dto.setOrganizerId(organizer.getOrganizerId());
+                    dto.setOrganizer(organizer.getOrganizer());
+                }
+            }
+
+            Status status = statusMap.get(dto.getStatus());
+            if (status != null) {
+                dto.setStatusName(status.getStatusName());
+                dto.setStatusColor(status.getColorCode());
+            }
+
+            RequisitionTransaction requisitionTransaction = transactionMap.get(dto.getRequisitionId());
+            if(requisitionTransaction != null){
+                dto.setApprovedDate(requisitionTransaction.getActionDate());
+            }
+
+        }
+
+        return dtoList;
+
+    }
+
+    public String getApprovalType(Long empId) {
+
+        LocalDate today = LocalDate.now();
+
+        Set<Long> saHrtEmpIds = signRoleAuthorityRepository
+                .findBySignAuthRole("SA-HRT")
+                .stream()
+                .map(SignRoleAuthorityDTO::getEmpId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        LoginEmployeeDto directorEmp =
+                loginRepository.findEmployeeByRoleName("ROLE_DIRECTOR");
+
+        Long directorEmpId =
+                directorEmp != null ? directorEmp.getEmpId() : null;
+
+        Set<Long> handedOverFromEmpIds = handingOverRepository
+                .findByToEmpIdAndToDateGreaterThanEqualAndIsActive(
+                        empId,
+                        today,
+                        1)
+                .stream()
+                .map(HandingOver::getFromEmpId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // Director first
+        if (Objects.equals(empId, directorEmpId)
+                || handedOverFromEmpIds.contains(directorEmpId)) {
+            return "DIRECTOR";
+        }
+
+        // Then SA_HRT
+        if (saHrtEmpIds.contains(empId)
+                || handedOverFromEmpIds.stream()
+                .anyMatch(saHrtEmpIds::contains)) {
+            return "SA_HRT";
+        }
+
+        return "NO_ACCESS";
     }
 }
