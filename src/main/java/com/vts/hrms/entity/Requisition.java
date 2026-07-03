@@ -98,6 +98,21 @@ public class Requisition implements Serializable {
     @Column(name = "is_mandatory")
     private String isMandatory;
 
+    @Column(name = "is_confirmed")
+    private String isConfirmed;
+
+    @Column(name = "confirm_remarks")
+    private String confirmRemarks;
+
+    @Column(name = "file_confirm")
+    private String fileConfirm;
+
+    @Column(name = "is_attend")
+    private String isAttend;
+
+    @Column(name = "attend_remarks")
+    private String attendRemarks;
+
     @NotNull
     @Column(name = "is_active", nullable = false)
     private Integer isActive;

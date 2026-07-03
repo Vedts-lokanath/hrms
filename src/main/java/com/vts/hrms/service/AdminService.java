@@ -18,6 +18,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -44,6 +45,7 @@ public class AdminService {
     private final AuditStampingRepository auditStampingRepository;
     private final HandingOverRepository handingOverRepository;
     private final HandingOverMapper handingOverMapper;
+    private final CashLimitRepository cashLimitRepository;
 
 
     @Value("${x_api_key}")
@@ -57,7 +59,7 @@ public class AdminService {
 
     private DateTimeFormatter formatter;
 
-    public AdminService(RoleRepository roleRepository, LoginRepository loginRepository, RoleSecurityRepository roleSecurityRepository, MasterClientService masterClient, FormModuleRepository formModuleRepository, FormDetailRepository formDetailRepository, FormRoleAccessRepository formRoleAccessRepository, NotificationRepository notificationRepository, MasterCacheService masterCacheService, AuditStampingRepository auditStampingRepository, HandingOverRepository handingOverRepository, HandingOverMapper handingOverMapper) {
+    public AdminService(RoleRepository roleRepository, LoginRepository loginRepository, RoleSecurityRepository roleSecurityRepository, MasterClientService masterClient, FormModuleRepository formModuleRepository, FormDetailRepository formDetailRepository, FormRoleAccessRepository formRoleAccessRepository, NotificationRepository notificationRepository, MasterCacheService masterCacheService, AuditStampingRepository auditStampingRepository, HandingOverRepository handingOverRepository, HandingOverMapper handingOverMapper, CashLimitRepository cashLimitRepository) {
         this.roleRepository = roleRepository;
         this.loginRepository = loginRepository;
         this.roleSecurityRepository = roleSecurityRepository;
@@ -70,6 +72,7 @@ public class AdminService {
         this.auditStampingRepository = auditStampingRepository;
         this.handingOverRepository = handingOverRepository;
         this.handingOverMapper = handingOverMapper;
+        this.cashLimitRepository = cashLimitRepository;
     }
 
     @Cacheable(value = "roleList")
@@ -216,12 +219,12 @@ public class AdminService {
     }
 
 
-    @Cacheable(value = "formModuleListByRole", key = "#FormRoleId")
-    public List<FormModuleDto> formModuleList(Long FormRoleId) throws Exception {
+    @Cacheable(value = "formModuleListByRole", key = "#roleName")
+    public List<FormModuleDto> formModuleList(String roleName) throws Exception {
         log.info(" Inside formModuleList ");
         try {
-            List<FormModuleDto> formModuleDtoList = new ArrayList<FormModuleDto>();
-            List<FormModule> formModuleList = formModuleRepository.findDistinctFormModulesByRoleId(FormRoleId);
+            List<FormModuleDto> formModuleDtoList = new ArrayList<>();
+            List<FormModule> formModuleList = formModuleRepository.findDistinctFormModulesByRoleId(roleName);
 
             formModuleList.forEach(detail -> {
                 FormModuleDto formModuleDto = FormModuleDto.builder()
@@ -271,12 +274,12 @@ public class AdminService {
     }
 
 
-    @Cacheable(value = "formModuleDetailListByRole", key = "#FormRoleId")
-    public List<FormDetailDto> formModuleDetailList(Long FormRoleId) throws Exception {
+    @Cacheable(value = "formModuleDetailListByRole", key = "#roleName")
+    public List<FormDetailDto> formModuleDetailList(String roleName) throws Exception {
         log.info(" Inside formModuleDetailList ");
         try {
-            List<FormDetailDto> formDetailDtoList = new ArrayList<FormDetailDto>();
-            List<FormDetail> formDetailList = formDetailRepository.findDistinctFormModulesDetailsByRoleId(FormRoleId);
+            List<FormDetailDto> formDetailDtoList = new ArrayList<>();
+            List<FormDetail> formDetailList = formDetailRepository.findDistinctFormModulesDetailsByRoleId(roleName);
 
             formDetailList.forEach(detail -> {
                 FormDetailDto formModuleDto = FormDetailDto.builder()
@@ -741,6 +744,105 @@ public class AdminService {
                 .map(handingOverRepository::save)
                 .map(handingOverMapper::toDto);
     }
+
+    @CacheEvict(value = "cashLimitList", allEntries = true)
+    @Transactional
+    public CashLimit addCashLimit(CashLimit cashLimit, String username) {
+        log.info("Adding Cash Limit");
+        log.info("Received Cash Limit: {}", cashLimit.getCashLimit());
+
+        if (cashLimit.getCashLimit() == null ||
+                cashLimit.getCashLimit().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Cash Limit must be greater than zero");
+        }
+        CashLimit previousRecord = cashLimitRepository.findTopByOrderByCashLimitIdDesc();
+
+        if(previousRecord == null) {
+            // First record
+            if(cashLimit.getFromDate() == null) {
+                throw new BadRequestException("From Date is required");
+            }
+        }
+        else {
+            // Existing records
+            LocalDate expectedFromDate =
+                    previousRecord.getToDate().plusDays(1);
+            cashLimit.setFromDate(expectedFromDate);
+        }
+
+        if(cashLimit.getToDate() == null) {
+            throw new BadRequestException("To Date is required");
+        }
+
+        if(cashLimit.getToDate().isBefore(cashLimit.getFromDate())) {
+            throw new BadRequestException(
+                    "To Date cannot be before From Date"
+            );
+        }
+
+        try {
+            cashLimitRepository.deactivateActiveRecords();
+            cashLimit.setCreatedBy(username);
+            cashLimit.setCreatedDate(LocalDateTime.now());
+            cashLimit.setIsActive(1);
+            cashLimit.setFromDate(cashLimit.getFromDate());
+            cashLimit.setToDate(cashLimit.getToDate());
+
+            return cashLimitRepository.save(cashLimit);
+
+        } catch (Exception e) {
+            log.error("Error while adding Cash Limit", e);
+            throw new BadRequestException("Failed to add Cash Limit");
+        }
+    }
+
+    @CacheEvict(value = "cashLimitList", allEntries = true)
+    @Transactional
+    public CashLimit updateCashLimit(CashLimit cashLimit, String username) {
+        log.info("Updating Cash Limit : {}", cashLimit.getCashLimitId());
+
+        if (cashLimit.getCashLimit() == null ||
+                cashLimit.getCashLimit().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Cash Limit must be greater than zero");
+        }
+
+        if (cashLimit.getFromDate() == null) {
+            throw new BadRequestException("From Date is required");
+        }
+
+        if (cashLimit.getToDate() == null) {
+            throw new BadRequestException("To Date is required");
+        }
+
+        if (cashLimit.getToDate().isBefore(cashLimit.getFromDate())) {
+            throw new BadRequestException("To Date cannot be before From Date");
+        }
+
+        CashLimit existing = cashLimitRepository.findById(cashLimit.getCashLimitId())
+                .orElseThrow(() -> new RuntimeException("Cash Limit not found"));
+
+        existing.setCashLimit(cashLimit.getCashLimit());
+        existing.setFromDate(cashLimit.getFromDate());
+        existing.setToDate(cashLimit.getToDate());
+        existing.setModifiedBy(username);
+        existing.setModifiedDate(LocalDateTime.now());
+
+        return cashLimitRepository.save(existing);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CashLimit> getCashLimitList() {
+        log.info("Fetching Cash Limit List");
+
+        try {
+            return cashLimitRepository.findAllByOrderByCashLimitIdDesc();
+
+        } catch (Exception e) {
+            log.error("Error while fetching Cash Limit List", e);
+            throw new NotFoundException("Failed to fetch Cash Limit List");
+        }
+    }
+
 }
 
 

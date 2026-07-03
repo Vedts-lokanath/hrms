@@ -37,7 +37,7 @@ public interface LoginRepository extends JpaRepository<Login, Long> {
             "JOIN login_role_security e ON e.login_id=d.login_id " +
             "JOIN role_security f ON f.role_id=e.role_id " +
             "WHERE d.username=:username " +
-            "AND d.is_active=1", nativeQuery = true)
+            "AND d.is_active=1 LIMIT 1", nativeQuery = true)
     LoginEmployeeDto findByUserName(@Param("username") String username);
 
     Login findByUsernameAndIsActive(String username, int isActive);
@@ -48,7 +48,7 @@ public interface LoginRepository extends JpaRepository<Login, Long> {
             "FROM login d " +
             "JOIN login_role_security e ON e.login_id=d.login_id " +
             "JOIN role_security f ON f.role_name=:roleDirector AND f.role_id=e.role_id " +
-            "WHERE d.is_active=1 ", nativeQuery = true)
+            "WHERE d.is_active=1 LIMIT 1", nativeQuery = true)
     LoginEmployeeDto findEmployeeByRoleName(@Param("roleDirector") String roleDirector);
 
     Login findByUsername(String username);

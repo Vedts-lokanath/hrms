@@ -5,13 +5,19 @@ public class AuthenticationRequest {
 
     private String username;
     private String password;
-    private Long timestamp;
+//    private Long timestamp;
 
-    public AuthenticationRequest(String username, String password, Long timestamp) {
-        super();
+//    public AuthenticationRequest(String username, String password, Long timestamp) {
+//        super();
+//        this.username = username;
+//        this.password = password;
+//        this.timestamp = timestamp;
+//    }
+
+
+    public AuthenticationRequest(String username, String password) {
         this.username = username;
         this.password = password;
-        this.timestamp = timestamp;
     }
 
     public AuthenticationRequest()
@@ -31,7 +37,7 @@ public class AuthenticationRequest {
     public void setPassword(String password) {
         this.password = password;
     }
-    public Long getTimestamp() { return timestamp; }
-    public void setTimestamp(Long timestamp) { this.timestamp = timestamp; }
+//    public Long getTimestamp() { return timestamp; }
+//    public void setTimestamp(Long timestamp) { this.timestamp = timestamp; }
 
 }

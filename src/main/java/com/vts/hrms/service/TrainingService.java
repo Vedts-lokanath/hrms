@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -76,9 +77,10 @@ public class TrainingService {
     private final JournalMapper journalMapper;
     private final JournalRepository journalRepository;
     private final HandingOverRepository handingOverRepository;
+    private final CashLimitRepository cashLimitRepository;
 
 
-    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, OrganizerMapper organizerMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, CourseMapper courseMapper, CourseRepository courseRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository, FeedbackMapper feedbackMapper, FeedbackRepository feedbackRepository, RequisitionTransactionRepository transactionRepository, MasterCacheService masterCacheService, NotificationRepository notificationRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, RequisitionSequenceRepository sequenceRepository, EvaluationRepository evaluationRepository, EligibilityMapper eligibilityMapper, EligibilityRepository eligibilityRepository, CourseTypeRepository courseTypeRepository, LoginRepository loginRepository, CepRepository cepRepository, CepMapper cepMapper, DistributionRepository distributionRepository, DistributionMapper distributionMapper, CepAttachmentsRepository cepAttachmentsRepository, JournalMapper journalMapper, JournalRepository journalRepository, HandingOverRepository handingOverRepository) {
+    public TrainingService(MasterClientService masterClient, OrganizerRepository organizerRepository, OrganizerMapper organizerMapper, CalendarMapper calenderMapper, CalenderRepository calenderRepository, CourseMapper courseMapper, CourseRepository courseRepository, RequisitionMapper requisitionMapper, RequisitionRepository requisitionRepository, FeedbackMapper feedbackMapper, FeedbackRepository feedbackRepository, RequisitionTransactionRepository transactionRepository, MasterCacheService masterCacheService, NotificationRepository notificationRepository, SignRoleAuthorityRepository signRoleAuthorityRepository, RequisitionSequenceRepository sequenceRepository, EvaluationRepository evaluationRepository, EligibilityMapper eligibilityMapper, EligibilityRepository eligibilityRepository, CourseTypeRepository courseTypeRepository, LoginRepository loginRepository, CepRepository cepRepository, CepMapper cepMapper, DistributionRepository distributionRepository, DistributionMapper distributionMapper, CepAttachmentsRepository cepAttachmentsRepository, JournalMapper journalMapper, JournalRepository journalRepository, HandingOverRepository handingOverRepository, CashLimitRepository cashLimitRepository) {
         this.masterClient = masterClient;
         this.organizerRepository = organizerRepository;
         this.organizerMapper = organizerMapper;
@@ -108,6 +110,7 @@ public class TrainingService {
         this.journalMapper = journalMapper;
         this.journalRepository = journalRepository;
         this.handingOverRepository = handingOverRepository;
+        this.cashLimitRepository = cashLimitRepository;
     }
 
     @Transactional(readOnly = true)
@@ -304,7 +307,7 @@ public class TrainingService {
     }
 
     @Transactional(readOnly = true)
-    public List<RequisitionDTO> getRequisitionList(Long empId, String roleName, LocalDate fromDate, LocalDate toDate, Long selectedEmployeeId ,String username, String isMandatory) {
+    public List<RequisitionDTO> getRequisitionList(Long empId, String roleName, LocalDate fromDate, LocalDate toDate, Long selectedEmployeeId, String username, String isMandatory) {
         log.info("Requisition list fetched for role {} by {}", roleName, username);
 
         List<Requisition> list = new ArrayList<>();
@@ -359,9 +362,9 @@ public class TrainingService {
                             && !r.getFromDate().isBefore(fromDate)
                             && !r.getFromDate().isAfter(toDate))
                     .toList();
-            if(selectedEmployeeId != null && selectedEmployeeId >0){ // for particular employee filters in list page
+            if (selectedEmployeeId != null && selectedEmployeeId > 0) { // for particular employee filters in list page
                 list = list.stream()
-                        .filter(r-> Objects.equals(r.getInitiatingOfficer(), selectedEmployeeId)).toList();
+                        .filter(r -> Objects.equals(r.getInitiatingOfficer(), selectedEmployeeId)).toList();
             }
         }
 
@@ -520,6 +523,13 @@ public class TrainingService {
 
         Requisition requisition = requisitionRepository.findById(dto.getRequisitionId())
                 .orElseThrow(() -> new NotFoundException("Requisition data not found"));
+
+        if("N".equalsIgnoreCase(requisition.getIsAttend())){
+            requisition.setIsAttend("Y");
+            requisition.setModifiedBy(username);
+            requisition.setModifiedDate(LocalDateTime.now());
+            requisitionRepository.save(requisition);
+        }
 
         Path fullpath = Paths.get(appStorage, "Requisition",
                 requisition.getRequisitionNumber().replace("/", "_"), "Feedback");
@@ -771,10 +781,14 @@ public class TrainingService {
         } else if (requisition.getStatus().equalsIgnoreCase("AR") || requisition.getStatus().equalsIgnoreCase("SF")) {
             requisition.setStatus("AS");
 
+            CashLimit cashLimit = cashLimitRepository.findTopByOrderByCashLimitIdDesc();
+
             List<SignRoleAuthorityDTO> authorityDTOList;
             String notFoundMsg;
 
-            if (requisition.getRegistrationFee().longValue() > 0) {
+            if (requisition.getRegistrationFee().compareTo(BigDecimal.ZERO) > 0
+                    && requisition.getRegistrationFee().compareTo(cashLimit.getCashLimit()) >= 0) {
+
                 authorityDTOList = signRoleAuthorityRepository.findBySignAuthRole("CAG-Div");
                 notFoundMsg = "In SignRoleAuthority CAG role not found";
             } else {
@@ -952,7 +966,6 @@ public class TrainingService {
 
         List<RequisitionDTO> dtoList = requisitionMapper.toDto(requisitionList);
         // Fetch master data
-        List<Organizer> organizerList = organizerRepository.findAllByIsActive(1);
 
         Map<String, Status> statusMap = masterCacheService.getStatusMap();
         Map<Long, Organizer> organizerMap = masterCacheService.getOrganizerMap();
@@ -976,6 +989,16 @@ public class TrainingService {
 
 
         for (RequisitionDTO dto : dtoList) {
+
+            EmployeeDTO initiator = employeeMap.get(dto.getInitiatingOfficer());
+
+            if (initiator != null) {
+                dto.setEmpNo(initiator.getEmpNo());
+                dto.setInitiatingOfficerName(
+                        CommonUtil.buildEmployeeName(initiator, false)
+                );
+                dto.setEmpDesigName(initiator.getEmpDesigName());
+            }
 
             // Course + Organizer
             Course course = courseMap.get(dto.getCourseId());
@@ -1272,7 +1295,7 @@ public class TrainingService {
     }
 
     @Transactional
-    public Optional<FeedbackDTO> updateFeedback(@Valid FeedbackDTO dto, String username) throws IOException {
+    public Optional<FeedbackDTO> updateFeedback(@Valid FeedbackDTO dto, String username) {
 
         log.info("Request to update feedback for id {} by {}", dto.getFeedbackId(), username);
 
@@ -2063,7 +2086,7 @@ public class TrainingService {
         log.info("Request to fetch getRoleWiseApprovedList empId: {}, fromDate: {}, toDate: {}", empId, fromDate, toDate);
 
         List<RequisitionTransaction> transListByEmpId =
-                transactionRepository.findTransactionsByEmployeeAndDateRange(empId, fromDate.atStartOfDay(), toDate.atTime(LocalTime.MAX),List.of("AR", "AV", "AS", "CA"));
+                transactionRepository.findTransactionsByEmployeeAndDateRange(empId, fromDate.atStartOfDay(), toDate.atTime(LocalTime.MAX), List.of("AR", "AV", "AS", "CA"));
 
         Map<Long, RequisitionTransaction> transactionMap = transListByEmpId.stream()
                 .collect(Collectors.toMap(
@@ -2095,9 +2118,18 @@ public class TrainingService {
         Map<String, Status> statusMap = masterCacheService.getStatusMap();
         Map<Long, Organizer> organizerMap = masterCacheService.getOrganizerMap();
         Map<Long, Course> courseMap = masterCacheService.getCourseMap();
+        Map<Long, EmployeeDTO> employeeMap = masterCacheService.getLongEmployeeDTOMap();
 
 
         for (RequisitionDTO dto : dtoList) {
+
+            if (dto.getInitiatingOfficer() != null) {
+                EmployeeDTO employeeDTO = employeeMap.get(dto.getInitiatingOfficer());
+                if (employeeDTO != null) {
+                    dto.setInitiatingOfficerName(CommonUtil.buildEmployeeName(employeeDTO, false));
+                    dto.setEmpDesigName(employeeDTO.getEmpDesigName());
+                }
+            }
 
             // Course + Organizer
             Course course = courseMap.get(dto.getCourseId());
@@ -2117,7 +2149,7 @@ public class TrainingService {
             }
 
             RequisitionTransaction requisitionTransaction = transactionMap.get(dto.getRequisitionId());
-            if(requisitionTransaction != null){
+            if (requisitionTransaction != null) {
                 dto.setApprovedDate(requisitionTransaction.getActionDate());
             }
 
@@ -2168,5 +2200,40 @@ public class TrainingService {
         }
 
         return "NO_ACCESS";
+    }
+
+    public RequisitionDTO addConfirmation(@Valid RequisitionDTO dto, String username) throws IOException {
+        log.info("Request to add confirmation for reqId {} by {} ", dto.getRequisitionId(), username);
+
+        Requisition requisition = requisitionRepository.findById(dto.getRequisitionId())
+                .orElseThrow(()-> new NotFoundException("Requisition data not found"));
+
+        requisition.setIsConfirmed(dto.getIsConfirmed());
+        requisition.setConfirmRemarks(dto.getConfirmRemarks());
+        requisition.setModifiedBy(username);
+        requisition.setModifiedDate(LocalDateTime.now());
+
+        Path fullpath = Paths.get(appStorage, "Requisition", requisition.getRequisitionNumber().replace("/", "_"));
+        if (dto.getMultipartFileBrochure() != null && !dto.getMultipartFileBrochure().isEmpty()) {
+            requisition.setFileConfirm(dto.getMultipartFileBrochure().getOriginalFilename());
+            FileStorageUtil.saveFile(fullpath, dto.getMultipartFileBrochure().getOriginalFilename(), dto.getMultipartFileBrochure());
+        }
+        requisition = requisitionRepository.save(requisition);
+        return requisitionMapper.toDto(requisition);
+    }
+
+    public RequisitionDTO addReqAttendance(RequisitionDTO dto, String username) {
+        log.info("Request to add attendance for reqId {} by {} ", dto.getRequisitionId(), username);
+
+        Requisition requisition = requisitionRepository.findById(dto.getRequisitionId())
+                .orElseThrow(()-> new NotFoundException("Requisition data not found"));
+
+        requisition.setIsAttend(dto.getIsAttend());
+        requisition.setAttendRemarks(dto.getAttendRemarks());
+        requisition.setModifiedBy(username);
+        requisition.setModifiedDate(LocalDateTime.now());
+
+        requisition = requisitionRepository.save(requisition);
+        return requisitionMapper.toDto(requisition);
     }
 }

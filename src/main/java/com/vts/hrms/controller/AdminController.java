@@ -5,12 +5,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.vts.hrms.auth.AuthenticationController;
 import com.vts.hrms.dto.*;
 import com.vts.hrms.entity.AuditStamping;
+import com.vts.hrms.entity.CashLimit;
 import com.vts.hrms.entity.Login;
 import com.vts.hrms.entity.RoleSecurity;
+import com.vts.hrms.exception.BadRequestException;
 import com.vts.hrms.repository.LoginRepository;
 import com.vts.hrms.service.AdminService;
 import com.vts.hrms.util.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -110,16 +113,16 @@ public class AdminController {
     }
 
 
-    @RequestMapping(value = "/header-module", method = RequestMethod.POST, produces = "application/json")
-    public List<FormModuleDto> headerModule(@RequestBody Long FormRoleId) throws Exception {
+    @GetMapping(value = "/header-module", produces = "application/json")
+    public List<FormModuleDto> headerModule(@RequestParam String roleName) throws Exception {
 
-        return adminService.formModuleList(FormRoleId);
+        return adminService.formModuleList(roleName);
     }
 
-    @RequestMapping(value = "/header-detail", method = RequestMethod.POST, produces = "application/json")
-    public List<FormDetailDto> headerDetail(@RequestBody Long FormRoleId) throws Exception {
+    @GetMapping(value = "/header-detail", produces = "application/json")
+    public List<FormDetailDto> headerDetail(@RequestParam String roleName) throws Exception {
 
-        return adminService.formModuleDetailList(FormRoleId);
+        return adminService.formModuleDetailList(roleName);
     }
 
     @PostMapping(value = "/form-modules-list", produces = "application/json")
@@ -396,6 +399,56 @@ public class AdminController {
         return ResponseEntity.ok(
                 new ApiResponse(true, "Handing Over revoked successfully", data)
         );
+    }
+
+    @PostMapping(value = "/add-cash-limit", produces = "application/json")
+    public ResponseEntity<ApiResponse> addCashLimit(@Valid @RequestBody CashLimit cashLimit,
+                                                    @RequestHeader String username) {
+        try {
+            CashLimit saved = adminService.addCashLimit(cashLimit, username);
+            return ResponseEntity.ok(
+                    new ApiResponse(true, "Cash Limit added successfully", saved)
+            );
+        } catch (BadRequestException e) {
+            LOG.error("Error while adding Cash Limit", e);
+            return ResponseEntity.badRequest().body(
+                    new ApiResponse(false, "Failed to add Cash Limit", null)
+            );
+        }
+    }
+
+    @PutMapping(value = "/update-cash-limit/{id}", produces = "application/json")
+    public ResponseEntity<ApiResponse> updateCashLimit(@PathVariable Long id,
+                                                       @Valid @RequestBody CashLimit cashLimit,
+                                                       @RequestHeader String username) {
+        try {
+            cashLimit.setCashLimitId(id);
+            CashLimit updated = adminService.updateCashLimit(cashLimit, username);
+            return ResponseEntity.ok(
+                    new ApiResponse(true, "Cash Limit updated successfully", updated)
+            );
+        } catch (Exception e) {
+            LOG.error("Error while updating Cash Limit", e);
+            return ResponseEntity.badRequest().body(
+                    new ApiResponse(false, "Failed to update Cash Limit", null)
+            );
+        }
+    }
+
+    @GetMapping(value = "/cash-limit-list", produces = "application/json")
+    public ResponseEntity<ApiResponse> getCashLimitList() {
+
+        try {
+            List<CashLimit> cashLimitList = adminService.getCashLimitList();
+            return ResponseEntity.ok(
+                    new ApiResponse(true, "Cash Limit List fetched successfully", cashLimitList)
+            );
+        } catch (Exception e) {
+            LOG.error("Error while fetching Cash Limit List", e);
+            return ResponseEntity.badRequest().body(
+                    new ApiResponse(false, "Failed to fetch Cash Limit List", null)
+            );
+        }
     }
 
 }

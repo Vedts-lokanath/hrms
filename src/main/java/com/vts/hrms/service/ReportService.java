@@ -170,6 +170,60 @@ public class ReportService {
                 .toList();
     }
 
+    public List<RequisitionDTO> getAllCourseTrainingList() {
+        log.info("Fetching all course training data");
+
+        Map<Long, EmployeeDTO> employeeMap = masterCacheService.getLongEmployeeDTOMap();
+        Map<Long, Organizer> organizerMap = masterCacheService.getOrganizerMap();
+        Map<Long, Course> courseMap = masterCacheService.getCourseMap();
+        Map<String, Status> statusMap = masterCacheService.getStatusMap();
+
+        List<CourseTypeDTO> typeDTOList = trainingService.getCourseTypeList("user");
+        Map<Long, CourseTypeDTO> typeDTOMap = typeDTOList.stream()
+                .collect(Collectors.toMap(CourseTypeDTO::getCourseTypeId, Function.identity()));
+
+        List<Requisition> list = requisitionRepository.findAllByIsAttendAndIsActive("Y",1);
+
+        return list.stream()
+                .map(requisitionMapper::toDto)
+                .peek(dto -> {
+
+                    Course course = courseMap.get(dto.getCourseId());
+                    Organizer organizer = organizerMap.get(course.getOrganizerId());
+                    CourseTypeDTO typeDTO = typeDTOMap.get(course.getCourseTypeId());
+                    EmployeeDTO employeeDTO = employeeMap.get(dto.getInitiatingOfficer());
+                    Status status = statusMap.get(dto.getStatus());
+
+                    dto.setCourseName(course.getCourseName());
+                    dto.setCourseLevel(course.getCourseLevel());
+                    dto.setCourseType(typeDTO.getCourseType());
+                    dto.setVenue(course.getVenue());
+
+                    dto.setStatusColor(status.getColorCode());
+                    dto.setStatusName(status.getStatusName());
+
+                    dto.setOfflineRegistrationFee(course.getOfflineRegistrationFee());
+                    dto.setOnlineRegistrationFee(course.getOnlineRegistrationFee());
+                    if (organizer != null) {
+                        dto.setOrganizer(organizer.getOrganizer());
+                        dto.setOrganizerContactName(organizer.getContactName());
+                        dto.setOrganizerPhoneNo(organizer.getPhoneNo());
+                        dto.setOrganizerFaxNo(organizer.getFaxNo());
+                        dto.setOrganizerEmail(organizer.getEmail());
+                    }
+                    if (employeeDTO != null) {
+                        dto.setEmpNo(employeeDTO.getEmpNo());
+                        dto.setInitiatingOfficerName(CommonUtil.buildEmployeeName(employeeDTO, false));
+                        dto.setDesigCadre(employeeDTO.getDesigCadre());
+                        dto.setEmpDesigName(employeeDTO.getEmpDesigName());
+                        dto.setEmpDivCode(employeeDTO.getEmpDivCode());
+                        dto.setEmail(employeeDTO.getEmail());
+                        dto.setMobileNo(employeeDTO.getMobileNo());
+                    }
+                })
+                .toList();
+    }
+
     @Cacheable(value = "cepReportCache",key = "#fromDate + '_' + #toDate + '_' + #username")
     public List<CepDTO> getCEPData(LocalDate fromDate, LocalDate toDate, String username) {
         log.info("Fetching CEP list data from {} to {}", fromDate, toDate);
