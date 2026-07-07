@@ -1,6 +1,7 @@
 package com.vts.hrms.repository;
 
 import com.vts.hrms.dto.LoginEmployeeDto;
+import com.vts.hrms.dto.UserListRowDTO;
 import com.vts.hrms.dto.UserResponseDTO;
 import com.vts.hrms.entity.Login;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,21 +15,21 @@ import java.util.List;
 public interface LoginRepository extends JpaRepository<Login, Long> {
 
     @Query(value = """
-        SELECT
-               a.login_id  AS loginId,
-               c.role_id   AS roleId,
-               a.emp_id    AS empId,
-               NULL   AS  divisionId,
-               a.username   AS username,
-               NULL AS employeeName,
-               NULL AS designationName,
-               c.role_name AS roleName,
-               NULL AS divisionName
-               FROM login a
-               LEFT JOIN login_role_security b ON b.login_id = a.login_id
-               LEFT JOIN role_security c ON c.role_id = b.role_id
-               WHERE a.is_active = 1 ;""", nativeQuery = true)
-    List<UserResponseDTO> getUserList();
+            SELECT
+                   a.login_id  AS loginId,
+                   c.role_id   AS roleId,
+                   a.emp_id    AS empId,
+                   NULL   AS  divisionId,
+                   a.username   AS username,
+                   NULL AS employeeName,
+                   NULL AS designationName,
+                   c.role_name AS roleName,
+                   NULL AS divisionName
+                   FROM login a
+                   LEFT JOIN login_role_security b ON b.login_id = a.login_id
+                   LEFT JOIN role_security c ON c.role_id = b.role_id
+                   WHERE a.is_active = 1 ;""", nativeQuery = true)
+    List<UserListRowDTO> getUserList();
 
     boolean existsByUsernameIgnoreCase(String username);
 

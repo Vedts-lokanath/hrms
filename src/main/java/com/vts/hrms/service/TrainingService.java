@@ -243,6 +243,8 @@ public class TrainingService {
 
         var status = "N".equalsIgnoreCase(dto.getIsMandatory()) ? "AA" : "AP";
         requisition.setStatus(status);
+        requisition.setIsConfirmed("N");
+        requisition.setIsAttend("N");
         requisition.setCreatedBy(username);
         requisition.setCreatedDate(LocalDateTime.now());
         requisition.setIsActive(1);

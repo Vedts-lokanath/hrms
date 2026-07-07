@@ -17,6 +17,4 @@ public class RoleSecurity {
     @Column(name = "role_name")
     private String roleName;
 
-    @ManyToMany(mappedBy = "roleSecurity")
-    private Set<Login> login;
 }

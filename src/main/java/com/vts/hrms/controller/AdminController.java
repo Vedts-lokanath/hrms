@@ -105,7 +105,7 @@ public class AdminController {
             }else {
                adminService.addNewUser(dto, username);
             }
-            return new ResponseEntity<String>("200" , HttpStatus.OK);
+            return new ResponseEntity<>("200" , HttpStatus.OK);
         } catch (Exception e) {
             LOG.error("Error fetching userInsert:{} ",e.getMessage());
             return ResponseEntity.status(500).body("Error occurred: " + e.getMessage());

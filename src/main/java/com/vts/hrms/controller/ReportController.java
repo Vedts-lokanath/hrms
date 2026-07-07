@@ -140,14 +140,11 @@ public class ReportController {
         );
     }
 
-//    @GetMapping("/course")
-//    public ResponseEntity<ApiResponse> getAllCourseTrainingData() {
-//        LOG.info(" Request to fetch all course training list ");
-//        List<RequisitionDTO> list = reportsService.getCourseTrainingList(fromDate, toDate, "course");
-//        list = list.stream().filter(data -> "Y".equalsIgnoreCase(data.getIsAttend())).toList();
-//        return ResponseEntity.ok(
-//                new ApiResponse(true, "Course training list fetched successfully", list)
-//        );
-//    }
+    @GetMapping("/course")
+    public ResponseEntity<List<RequisitionDTO>> getAllCourseTrainingData() {
+        LOG.info(" Request to fetch all course training list ");
+        List<RequisitionDTO> list = reportsService.getAllCourseTrainingList();
+        return ResponseEntity.ok(list);
+    }
 
 }

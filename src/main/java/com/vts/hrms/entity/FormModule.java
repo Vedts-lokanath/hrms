@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 @Table(name = "hrms_form_module")
 @Data
 @Builder
-
 @NoArgsConstructor
 @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 public class FormModule  {

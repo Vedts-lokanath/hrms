@@ -91,25 +91,44 @@ public class AdminService {
     @Cacheable(value = "userList")
     public List<UserResponseDTO> getUserList() {
         log.info("Fetching all users");
-        List<UserResponseDTO> userList = loginRepository.getUserList();
+        List<UserListRowDTO> rows = loginRepository.getUserList();
 
         Map<Long, EmployeeDTO> employeeMap = masterCacheService.getLongEmployeeDTOMap();
 
-        // Set employee details into user response
-        for (UserResponseDTO user : userList) {
+        // group flat rows (one per role) by loginId
+        Map<Long, UserResponseDTO> grouped = new LinkedHashMap<>();
 
-            EmployeeDTO employee = employeeMap.get(user.getEmpId());
+        for (UserListRowDTO row : rows) {
+            UserResponseDTO user = grouped.get(row.getLoginId());
 
-            if (employee != null) {
-                user.setEmployeeName(CommonUtil.buildEmployeeName(employee, false));
-                user.setDesignationName(employee.getEmpDesigName());
-                user.setDivisionName(employee.getEmpDivCode());
+            if (user == null) {
+                user = new UserResponseDTO();
+                user.setLoginId(row.getLoginId());
+                user.setEmpId(row.getEmpId());
+                user.setDivisionId(row.getDivisionId());
+                user.setUsername(row.getUsername());
+                user.setRoleIds(new ArrayList<>());
+                user.setRoleNames(new ArrayList<>());
+
+                EmployeeDTO employee = employeeMap.get(row.getEmpId());
+                if (employee != null) {
+                    user.setEmployeeName(CommonUtil.buildEmployeeName(employee, false));
+                    user.setDesignationName(employee.getEmpDesigName());
+                    user.setDivisionName(employee.getEmpDivCode());
+                }
+
+                grouped.put(row.getLoginId(), user);
+            }
+
+            if (row.getRoleId() != null && !user.getRoleIds().contains(row.getRoleId())) {
+                user.getRoleIds().add(row.getRoleId());
+            }
+            if (row.getRoleName() != null && !user.getRoleNames().contains(row.getRoleName())) {
+                user.getRoleNames().add(row.getRoleName());
             }
         }
 
-        return userList;
-
-
+        return new ArrayList<>(grouped.values());
     }
 
     public boolean checkUsernameExists(String username) {
@@ -117,6 +136,35 @@ public class AdminService {
         return loginRepository.existsByUsernameIgnoreCase(username);
     }
 
+    public UserResponseDTO getUserById(Long loginId) {
+        log.info("Fetching user by loginId: {}", loginId);
+
+        Login login = loginRepository.findById(loginId)
+                .orElseThrow(() -> new RuntimeException("Login not found for loginId: " + loginId));
+
+        EmployeeDTO employee = masterCacheService.getLongEmployeeDTOMap().get(login.getEmpId());
+
+        List<Long> roleIds = login.getRoleSecurity().stream()
+                .map(RoleSecurity::getRoleId)
+                .collect(Collectors.toList());
+
+        List<String> roleNames = login.getRoleSecurity().stream()
+                .map(RoleSecurity::getRoleName)
+                .collect(Collectors.toList());
+
+        return new UserResponseDTO(
+                login.getLoginId(),
+                login.getEmpId(),
+                employee != null ? employee.getDivisionId() : null,
+                login.getUsername(),
+                employee != null ? CommonUtil.buildEmployeeName(employee, false) : null,
+                employee != null ? employee.getEmpDesigName() : null,
+                employee != null ? employee.getEmpDivCode() : null,
+                roleIds,
+                roleNames
+        );
+
+    }
 
     @CacheEvict(value = "userList", allEntries = true)
     @Transactional
@@ -124,13 +172,18 @@ public class AdminService {
 
         log.info("Adding new user for username: {}", dto.getUsername());
 
-        try {
-//            String password = "Vts@1234";
-            String password = "Cair@123";
+        if (dto.getRoleIds() == null || dto.getRoleIds().isEmpty()) {
+            throw new BadRequestException("At least one role must be selected");
+        }
 
-            // 1. Fetch Role
-            RoleSecurity role = roleSecurityRepository.findById(dto.getRoleId())
-                    .orElseThrow(() -> new RuntimeException("Role not found for roleId: " + dto.getRoleId()));
+        try {
+            String password = labCode + "@123";
+
+            // 1. Fetch all selected roles
+            List<RoleSecurity> roleList = roleSecurityRepository.findAllById(dto.getRoleIds());
+            if (roleList.size() != dto.getRoleIds().size()) {
+                throw new RuntimeException("One or more roleIds not found");
+            }
 
             // 2. Create Login Object
             Login login = new Login();
@@ -141,28 +194,27 @@ public class AdminService {
             login.setCreatedDate(LocalDateTime.now());
             login.setIsActive(1);
 
-            // 3. Map Role ↔ Login
-            Set<RoleSecurity> roleSet = new HashSet<>();
-            roleSet.add(role);
-
+            // 3. Map Roles ↔ Login (many-to-many)
+            Set<RoleSecurity> roleSet = new HashSet<>(roleList);
             login.setRoleSecurity(roleSet);
 
-            // 4. Save Login (join table auto insert)
+            // 4. Save Login (join table auto insert for each role)
             Login savedLogin = loginRepository.save(login);
 
-            // 5. Return Response DTO
             return new UserResponseDTO(
                     savedLogin.getLoginId(),
-                    role.getRoleId(),
                     savedLogin.getEmpId(),
                     dto.getDivisionId(),
                     savedLogin.getUsername(),
                     dto.getEmployeeName(),
                     dto.getDesignationName(),
-                    role.getRoleName(),
-                    dto.getDivisionName()
+                    dto.getDivisionName(),
+                    roleList.stream().map(RoleSecurity::getRoleId).collect(Collectors.toList()),
+                    roleList.stream().map(RoleSecurity::getRoleName).collect(Collectors.toList())
             );
 
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error while adding user", e);
             throw new BadRequestException("Failed to add new user");
@@ -175,16 +227,21 @@ public class AdminService {
 
         log.info("Updating user with loginId: {}", dto.getLoginId());
 
+        if (dto.getRoleIds() == null || dto.getRoleIds().isEmpty()) {
+            throw new BadRequestException("At least one role must be selected");
+        }
+
         try {
             // 1. Fetch existing Login
             Login login = loginRepository.findById(dto.getLoginId())
                     .orElseThrow(() -> new RuntimeException(
                             "Login not found for loginId: " + dto.getLoginId()));
 
-            // 2. Fetch Role
-            RoleSecurity role = roleSecurityRepository.findById(dto.getRoleId())
-                    .orElseThrow(() -> new RuntimeException(
-                            "Role not found for roleId: " + dto.getRoleId()));
+            // 2. Fetch all selected roles
+            List<RoleSecurity> roleList = roleSecurityRepository.findAllById(dto.getRoleIds());
+            if (roleList.size() != dto.getRoleIds().size()) {
+                throw new RuntimeException("One or more roleIds not found");
+            }
 
             // 3. Update login fields
             login.setUsername(dto.getUsername());
@@ -192,26 +249,27 @@ public class AdminService {
             login.setModifiedBy(username);
             login.setModifiedDate(LocalDateTime.now());
 
-            // 4. Update role mapping (join table)
-            login.getRoleSecurity().clear();  // delete old mapping
-            login.getRoleSecurity().add(role); // insert new mapping
+            // 4. Replace role mapping (join table) with new full set
+            login.getRoleSecurity().clear();
+            login.getRoleSecurity().addAll(roleList);
 
             // 5. Save changes
             Login updatedLogin = loginRepository.save(login);
 
-            // 6. Return updated DTO
             return new UserResponseDTO(
                     updatedLogin.getLoginId(),
-                    role.getRoleId(),
                     updatedLogin.getEmpId(),
                     dto.getDivisionId(),
                     updatedLogin.getUsername(),
                     dto.getEmployeeName(),
                     dto.getDesignationName(),
-                    role.getRoleName(),
-                    dto.getDivisionName()
+                    dto.getDivisionName(),
+                    roleList.stream().map(RoleSecurity::getRoleId).collect(Collectors.toList()),
+                    roleList.stream().map(RoleSecurity::getRoleName).collect(Collectors.toList())
             );
 
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error while updating user", e);
             throw new RuntimeException("Failed to update user");
@@ -376,16 +434,6 @@ public class AdminService {
             e.printStackTrace();
             return "0";
         }
-    }
-
-    public UserResponseDTO getUserById(Long loginId) {
-
-        Login login = loginRepository.findById(loginId).orElseThrow(() -> new NotFoundException("Login data not found"));
-        RoleSecurity roleSecurity = login.getRoleSecurity().stream().findAny().get();
-        List<EmployeeDTO> employeeDTO = masterClient.getEmployee(xApiKey, login.getEmpId());
-
-        return new UserResponseDTO(login.getLoginId(), roleSecurity.getRoleId(), login.getEmpId(), 0L, login.getUsername(),
-                employeeDTO.get(0).getEmpName(), employeeDTO.get(0).getEmpDesigName(), roleSecurity.getRoleName(), "");
     }
 
     public boolean hasAccess(String username) {
@@ -700,7 +748,7 @@ public class AdminService {
         return list;
     }
 
-    public boolean existOverlappingDateRange(HandingOverDTO dto, String action){
+    public boolean existOverlappingDateRange(HandingOverDTO dto, String action) {
         Long handingOverId = action.equalsIgnoreCase("update") ? dto.getHandingOverId() : null;
         return handingOverRepository.existsOverlappingDateRange(handingOverId, dto.getFromEmpId(), dto.getFromDate(), dto.getToDate());
     }
@@ -757,24 +805,23 @@ public class AdminService {
         }
         CashLimit previousRecord = cashLimitRepository.findTopByOrderByCashLimitIdDesc();
 
-        if(previousRecord == null) {
+        if (previousRecord == null) {
             // First record
-            if(cashLimit.getFromDate() == null) {
+            if (cashLimit.getFromDate() == null) {
                 throw new BadRequestException("From Date is required");
             }
-        }
-        else {
+        } else {
             // Existing records
             LocalDate expectedFromDate =
                     previousRecord.getToDate().plusDays(1);
             cashLimit.setFromDate(expectedFromDate);
         }
 
-        if(cashLimit.getToDate() == null) {
+        if (cashLimit.getToDate() == null) {
             throw new BadRequestException("To Date is required");
         }
 
-        if(cashLimit.getToDate().isBefore(cashLimit.getFromDate())) {
+        if (cashLimit.getToDate().isBefore(cashLimit.getFromDate())) {
             throw new BadRequestException(
                     "To Date cannot be before From Date"
             );

@@ -65,7 +65,7 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Long> 
             COUNT(r.requisitionId),
             SUM(CASE WHEN r.status IN ('AA','REV','RR','RV') THEN 1 ELSE 0 END),
             SUM(CASE WHEN r.status='AF' THEN 1 ELSE 0 END),
-            SUM(CASE WHEN r.status='AR' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN r.status IN ('AR','AS','AV','CA') THEN 1 ELSE 0 END),
             SUM(CASE WHEN r.status IN ('CO','DA') THEN 1 ELSE 0 END)
             )
             FROM Requisition r
