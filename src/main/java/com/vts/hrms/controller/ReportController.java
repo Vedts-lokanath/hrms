@@ -34,6 +34,7 @@ public class ReportController {
     public ResponseEntity<ApiResponse> getCourseTrainingData(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate) {
         LOG.info(" Request to fetch course training list for period {} - {} ", fromDate, toDate);
         List<RequisitionDTO> list = reportsService.getCourseTrainingList(fromDate, toDate, "course");
+        list = list.stream().filter(data -> "Y".equalsIgnoreCase(data.getIsAttend())).toList();
         return ResponseEntity.ok(
                 new ApiResponse(true, "Course training list fetched successfully", list)
         );
@@ -43,6 +44,7 @@ public class ReportController {
     public ResponseEntity<ApiResponse> getSeminarTrainingData(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate) {
         LOG.info(" Request to fetch seminar training list for period {} - {} ", fromDate, toDate);
         List<RequisitionDTO> list = reportsService.getCourseTrainingList(fromDate, toDate, "seminar");
+        list = list.stream().filter(data -> "Y".equalsIgnoreCase(data.getIsAttend())).toList();
         return ResponseEntity.ok(
                 new ApiResponse(true, "Seminar training list fetched successfully", list)
         );
@@ -136,6 +138,13 @@ public class ReportController {
         return ResponseEntity.ok(
                 new ApiResponse(true, "Research paper detail report list fetched successfully", data)
         );
+    }
+
+    @GetMapping("/course")
+    public ResponseEntity<List<RequisitionDTO>> getAllCourseTrainingData() {
+        LOG.info(" Request to fetch all course training list ");
+        List<RequisitionDTO> list = reportsService.getAllCourseTrainingList();
+        return ResponseEntity.ok(list);
     }
 
 }

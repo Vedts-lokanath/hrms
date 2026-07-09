@@ -95,6 +95,11 @@ public class RequisitionDTO implements Serializable {
     private String titleOfPaper;
 
     private String isMandatory;
+    private String isConfirmed;
+    private String confirmRemarks;
+    private String confirmFileName;
+    private String isAttend;
+    private String attendRemarks;
 
     private String forwardByName;
     private LocalDateTime forwardDate;

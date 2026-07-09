@@ -16,11 +16,12 @@ public interface FormModuleRepository extends JpaRepository<FormModule, Long> {
             FROM hrms_form_module a
             JOIN hrms_form_detail b ON a.form_module_id = b.form_module_id
             JOIN hrms_form_role_access c ON b.form_detail_id = c.form_detail_id
+            JOIN role_security d ON c.role_id = d.role_id
             WHERE a.is_active = 1 AND c.is_active = 1 AND c.for_view="Y"
-            AND c.role_id = :roleid
+            AND d.role_name = :roleName
             ORDER BY a.serial_no
             """, nativeQuery = true)
-    List<FormModule> findDistinctFormModulesByRoleId(@Param("roleid") Long roleid);
+    List<FormModule> findDistinctFormModulesByRoleId(@Param("roleName") String roleName);
 
     @Query(value = "SELECT form_module_id , form_module_name FROM hrms_form_module  WHERE is_active=1",
             nativeQuery = true)

@@ -44,7 +44,7 @@ public class JwtUtil {
         if (roles.contains(new SimpleGrantedAuthority("ROLE_ADMIN"))) {
             claims.put("isAdmin", true);
         }if (roles.contains(new SimpleGrantedAuthority("ROLE_USER"))) {
-            claims.put("isUser", true);
+            claims.put("isEmp", true);
         }if (roles.contains(new SimpleGrantedAuthority("ROLE_DH"))) {
             claims.put("isDh", true);
         }if (roles.contains(new SimpleGrantedAuthority("ROLE_GH"))) {
@@ -115,7 +115,7 @@ public class JwtUtil {
         List<SimpleGrantedAuthority> roles = new ArrayList<>();
 
         if (Boolean.TRUE.equals(claims.get("isAdmin", Boolean.class))) roles.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
-        if (Boolean.TRUE.equals(claims.get("isUser", Boolean.class))) roles.add(new SimpleGrantedAuthority("ROLE_USER"));
+        if (Boolean.TRUE.equals(claims.get("isEmp", Boolean.class))) roles.add(new SimpleGrantedAuthority("ROLE_USER"));
         if (Boolean.TRUE.equals(claims.get("isDh", Boolean.class))) roles.add(new SimpleGrantedAuthority("ROLE_DH"));
         if (Boolean.TRUE.equals(claims.get("isGh", Boolean.class))) roles.add(new SimpleGrantedAuthority("ROLE_GH"));
         if (Boolean.TRUE.equals(claims.get("isGhDh", Boolean.class))) roles.add(new SimpleGrantedAuthority("ROLE_GHDH"));

@@ -15,7 +15,7 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Long> 
 
     List<Requisition> findAllByIsActive(int isActive);
 
-    List<Requisition> findAllByStatusAndIsActive(String status, int isActive);
+    List<Requisition> findAllByIsAttendAndIsActive(String attend, int isActive);
 
     List<Requisition> findAllByStatusInAndIsActive(List<String> statusCodes, int isActive);
 
@@ -65,8 +65,8 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Long> 
             COUNT(r.requisitionId),
             SUM(CASE WHEN r.status IN ('AA','REV','RR','RV') THEN 1 ELSE 0 END),
             SUM(CASE WHEN r.status='AF' THEN 1 ELSE 0 END),
-            SUM(CASE WHEN r.status='AR' THEN 1 ELSE 0 END),
-            SUM(CASE WHEN r.status='AV' THEN 1 ELSE 0 END)
+            SUM(CASE WHEN r.status IN ('AR','AS','AV','CA') THEN 1 ELSE 0 END),
+            SUM(CASE WHEN r.status IN ('CO','DA') THEN 1 ELSE 0 END)
             )
             FROM Requisition r
             JOIN Course c ON r.courseId = c.courseId
@@ -86,7 +86,7 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Long> 
             SUM(CASE WHEN r.status IN ('AA','REV','RR','RV','RS') THEN 1 ELSE 0 END) AS pending,
             SUM(CASE WHEN r.status='AF' THEN 1 ELSE 0 END) AS forwarded,
             SUM(CASE WHEN r.status='AR' THEN 1 ELSE 0 END) AS recommended,
-            SUM(CASE WHEN r.status='AV' THEN 1 ELSE 0 END) AS approved
+            SUM(CASE WHEN r.status IN ('CO','DA') THEN 1 ELSE 0 END) AS approved
             )
             FROM Requisition r
             JOIN Course c ON r.courseId = c.courseId
