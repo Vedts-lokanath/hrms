@@ -177,7 +177,8 @@ public class AdminService {
         }
 
         try {
-            String password = labCode + "@123";
+            String formattedLabCode = labCode.substring(0, 1).toUpperCase() + labCode.substring(1).toLowerCase();
+            String password = formattedLabCode + "@123";
 
             // 1. Fetch all selected roles
             List<RoleSecurity> roleList = roleSecurityRepository.findAllById(dto.getRoleIds());
