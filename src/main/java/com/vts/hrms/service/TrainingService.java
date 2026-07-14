@@ -815,7 +815,9 @@ public class TrainingService {
         Requisition requisition = requisitionRepository.findById(dto.getRequisitionId())
                 .orElseThrow(() -> new NotFoundException("Requisition not found"));
 
-        CashLimit cashLimit = cashLimitRepository.findTopByOrderByCashLimitIdDesc();
+        CashLimit cashLimit = cashLimitRepository
+                .findTopByIsActiveOrderByCashLimitIdDesc(1)
+                .orElseThrow(() -> new NotFoundException("Cash limit is not configured."));
 
         BigDecimal registrationFee = Optional.ofNullable(requisition.getRegistrationFee())
                 .orElse(BigDecimal.ZERO);
@@ -1219,10 +1221,7 @@ public class TrainingService {
 
         EvaluationRequestDTO requestDTO = new EvaluationRequestDTO();
         requestDTO.setInitiator(id);
-        requestDTO.setTitle(employeeDTO.getTitle() != null ? employeeDTO.getTitle() :
-                (employeeDTO.getSalutation() != null ? employeeDTO.getSalutation() : ""));
-        requestDTO.setDesignation(employeeDTO.getEmpDesigName() != null ? employeeDTO.getEmpDesigName() : "");
-        requestDTO.setEmpName(employeeDTO.getEmpName() != null ? employeeDTO.getEmpName() : "");
+        requestDTO.setEmpName(employeeDTO!= null ? CommonUtil.buildEmployeeName(employeeDTO,true) : "");
         requestDTO.setEvaluation(evaluation);
 
         return requestDTO;
@@ -2308,5 +2307,11 @@ public class TrainingService {
 
         requisition = requisitionRepository.save(requisition);
         return requisitionMapper.toDto(requisition);
+    }
+
+    public LabMasterDTO getLabMasterData(String username) {
+        log.info("Request to fetch lab master data by {} ", username);
+        return masterCacheService.getLabMasterData()
+                .orElseThrow(() -> new NotFoundException("Lab Master data not found."));
     }
 }

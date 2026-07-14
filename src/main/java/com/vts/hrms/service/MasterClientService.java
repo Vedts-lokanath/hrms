@@ -55,4 +55,7 @@ public interface MasterClientService {
     @GetMapping("/getDivisionGroupList")
     List<DivisionGroupDTO> getDivisionGroupMasterList(@RequestHeader("X-API-KEY") String apiKey);
 
+    @GetMapping("/getLabMaster")
+    List<LabMasterDTO> getLabMaster(@RequestHeader("X-API-KEY") String apiKey);
+
 }

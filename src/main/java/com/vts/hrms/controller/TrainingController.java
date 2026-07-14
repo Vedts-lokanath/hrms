@@ -663,4 +663,13 @@ public class TrainingController {
         );
     }
 
+    @GetMapping(value = "/lab-master")
+    public ResponseEntity<ApiResponse> getLabMasterData(@RequestHeader String username) {
+        LabMasterDTO data = trainingService.getLabMasterData(username);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Lab details fetched successfully", data)
+        );
+    }
+
 }
