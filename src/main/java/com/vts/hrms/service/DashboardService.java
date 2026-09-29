@@ -274,6 +274,109 @@ public class DashboardService {
         return name.trim();
     }
 
+    public List<CountTypeResponse> getRequisitionFiveYrCount() {
+        log.info("Fetching requisition five financial year data");
+
+        LocalDate currentDate = LocalDate.now();
+
+        // Current financial year:
+        // If current month is Jan-Mar -> FY started previous year
+        // If current month is Apr-Dec -> FY started current year
+        int currentFyStartYear = currentDate.getMonthValue() >= 4 ? currentDate.getYear() : currentDate.getYear() - 1;
+
+        // Last 5 financial years
+        int startFyYear = currentFyStartYear - 4;
+
+        LocalDate startDate = LocalDate.of(startFyYear, 4, 1);
+
+        log.info("Fetching requisitions between {} and {}", startDate, currentDate);
+
+        List<Requisition> requisitions = Optional.ofNullable(requisitionRepository.getRequisitionDataByDateRange(startDate, currentDate))
+                .orElse(Collections.emptyList());
+
+        if (requisitions.isEmpty()) {
+            log.info("No requisitions data found between {} and {}", startDate, currentDate);
+            return Collections.emptyList();
+        }
+
+        Map<Long, EmployeeDTO> employeeMap = Optional.ofNullable(masterCacheService.getLongEmployeeDTOMap())
+                .orElse(Collections.emptyMap());
+
+        List<String> normalizedCadres = List.of("drds", "drtc", "servicePersonnel", "adminAndAllied", "others");
+
+        Map<String, List<Requisition>> requisitionsByFinancialYear = requisitions.stream()
+                .filter(Objects::nonNull)
+                .filter(r -> r.getFromDate() != null)
+                .collect(Collectors.groupingBy(
+                        r -> getFinancialYear(r.getFromDate())
+                ));
+
+        List<CountTypeResponse> responseList = new ArrayList<>();
+
+        for (int i = 0; i < 5; i++) {
+
+            int fyStartYear = currentFyStartYear - i;
+            String financialYear = fyStartYear + "-" + String.valueOf(fyStartYear + 1).substring(2);
+
+            List<Requisition> yearlyRequisitions = requisitionsByFinancialYear
+                    .getOrDefault(financialYear, Collections.emptyList());
+
+            long totalCount = yearlyRequisitions.stream().filter(this::isAttended).count();
+
+            Map<String, Long> cadreCounts = new LinkedHashMap<>();
+
+            for (String cadre : normalizedCadres) {
+                cadreCounts.put(cadre, 0L);
+            }
+
+            for (Requisition requisition : yearlyRequisitions) {
+                Long participantId = requisition.getInitiatingOfficer();
+                EmployeeDTO employee = participantId == null ? null : employeeMap.get(participantId);
+                String cadre = resolveNormalizedCadre(employee);
+
+                if (isAttended(requisition)) {
+                    cadreCounts.merge(cadre, 1L, Long::sum);
+                }
+            }
+
+            responseList.add(new CountTypeResponse(financialYear, totalCount, null, cadreCounts));
+        }
+
+        return responseList;
+    }
+
+
+    private String getFinancialYear(LocalDate date) {
+        int year = date.getYear();
+        int financialYearStart = date.getMonthValue() >= 4 ? year : year - 1;
+        return financialYearStart
+                + "-" + String.valueOf(financialYearStart + 1).substring(2);
+    }
+
+
+    private String resolveNormalizedCadre(EmployeeDTO employee) {
+
+        if (employee == null
+                || employee.getDesigCadre() == null
+                || employee.getDesigCadre().isBlank()) {
+
+            return "others";
+        }
+
+        String cadre = employee.getDesigCadre()
+                .trim()
+                .toLowerCase();
+
+        return switch (cadre) {
+            case "drds" -> "drds";
+            case "drtc" -> "drtc";
+            case "service personnel" -> "servicePersonnel";
+            case "admin & allied" -> "adminAndAllied";
+            default -> "others";
+        };
+    }
+
+
     @Getter
     private static class CourseDashboardAccumulator {
 

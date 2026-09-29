@@ -521,33 +521,34 @@ public class AdminService {
 
     @CacheEvict(value = "notificationList", allEntries = true)
     public long updateNotification(String username, String notificationId) {
-        log.info("Inside method updateNotification ");
+
+        log.info("Inside method updateNotification");
+
         try {
-            Optional<Notification> notifOptional = notificationRepository.findById(Long.parseLong(notificationId));
+            Optional<Notification> notifOptional =
+                    notificationRepository.findById(Long.parseLong(notificationId));
 
-            if (notifOptional.isPresent()) {
-                // Get the notification object from the Optional
-                Notification notification = notifOptional.get();
-
-                // Update the necessary fields
-                notification.setModifiedBy(username);
-                notification.setModifiedDate(LocalDateTime.now());
-                notification.setIsActive(0);
-
-                // Save the updated entity back to the repository
-                Notification updatedNotification = notificationRepository.save(notification);
-
-                // Return the ID of the updated notification
-                return updatedNotification.getNotificationId();
-            } else {
+            if (notifOptional.isEmpty()) {
                 log.error("Notification with ID {} not found.", notificationId);
-                throw new Exception("Notification not found");
+                return 0;
             }
+
+            Notification notification = notifOptional.get();
+
+            notification.setModifiedBy(username);
+            notification.setModifiedDate(LocalDateTime.now());
+            notification.setIsActive(0);
+
+            Notification updatedNotification = notificationRepository.save(notification);
+
+            return updatedNotification.getNotificationId();
+
         } catch (Exception e) {
             log.error("Error in updateNotification: {}", e.getMessage(), e);
             return 0;
         }
     }
+
 
     public List<AuditStampingDTO> auditStampingList(String username, LocalDate fromDate, LocalDate toDate) {
 

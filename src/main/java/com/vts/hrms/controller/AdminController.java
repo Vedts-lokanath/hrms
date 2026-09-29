@@ -1,8 +1,7 @@
 package com.vts.hrms.controller;
 
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.vts.hrms.auth.AuthenticationController;
+
 import com.vts.hrms.dto.*;
 import com.vts.hrms.entity.AuditStamping;
 import com.vts.hrms.entity.CashLimit;
@@ -33,10 +32,7 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -217,7 +213,7 @@ public class AdminController {
 
 
     @PutMapping("/update-notification")
-    public ResponseEntity<Void> updateNotification(
+    public ResponseEntity<Map<String, Object>> updateNotification(
             @RequestHeader("username") String username,
             @RequestParam("notificationId") String notificationId) {
 
@@ -226,11 +222,21 @@ public class AdminController {
         long result = adminService.updateNotification(username, notificationId);
 
         if (result != 0) {
-            return ResponseEntity.ok().build();
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("notificationId", result);
+            response.put("message", "Notification updated successfully");
+
+            return ResponseEntity.ok(response);
         }
 
-        return ResponseEntity.badRequest().build();
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("message", "Notification update failed");
+
+        return ResponseEntity.badRequest().body(response);
     }
+
 
 
     @PostMapping(value = "/get-role-username")

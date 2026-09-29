@@ -88,4 +88,12 @@ public class DashboardController {
         return ResponseEntity.ok(dashboardService.getUserYearlyTrend(empId, years));
     }
 
+    @GetMapping(value = "/five-yr-count")
+    public ResponseEntity<List<CountTypeResponse>> getRequisitionFiveYrCount() {
+
+        List<CountTypeResponse> list = dashboardService.getRequisitionFiveYrCount();
+
+        return ResponseEntity.ok(list);
+    }
+
 }
