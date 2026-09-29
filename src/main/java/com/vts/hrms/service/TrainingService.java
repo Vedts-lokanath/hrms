@@ -1323,6 +1323,19 @@ public class TrainingService {
 
         List<EvaluationDTO> evaluation = evaluationRepository.findByEmployee(id);
 
+        if (evaluation == null || evaluation.isEmpty()) {
+            throw new NotFoundException("No evaluation record available for this employee.");
+        }
+
+        if ("CAIR".equalsIgnoreCase(labCode)) {
+            LocalDate cutoffDate = LocalDate.of(2026, 4, 1);
+
+            evaluation = evaluation.stream()
+                    .filter(data -> data.getFromDate() != null
+                            && !data.getFromDate().isBefore(cutoffDate))
+                    .toList();
+        }
+
         Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
         EmployeeDTO employeeDTO = employeeDTOMap.get(id);
 
