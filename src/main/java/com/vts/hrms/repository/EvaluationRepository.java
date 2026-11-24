@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
 
@@ -76,4 +77,6 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
     List<EvaluationDTO> findEvaluationByDateRangeAndEmpId(@Param("empId") Long empId,
                                                           @Param("fromDate") LocalDate fromDate,
                                                           @Param("toDate") LocalDate toDate);
+
+    List<Evaluation> findAllByIsActive(int isActive);
 }

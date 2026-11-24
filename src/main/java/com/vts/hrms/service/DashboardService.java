@@ -5,6 +5,7 @@ import com.vts.hrms.entity.*;
 import com.vts.hrms.repository.CourseRepository;
 import com.vts.hrms.repository.EvaluationRepository;
 import com.vts.hrms.repository.RequisitionRepository;
+import com.vts.hrms.util.CommonUtil;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -374,6 +375,65 @@ public class DashboardService {
             case "admin & allied" -> "adminAndAllied";
             default -> "others";
         };
+    }
+
+    public List<Map<String, Object>> getDHEvaluationAlert(String roleName, Long empId) {
+
+        log.info("Request to fetch evaluation alert for roleName {} and empId {}", roleName, empId);
+
+        if (!Arrays.asList("ROLE_DH", "ROLE_GH").contains(roleName)) {
+            return List.of();
+        }
+
+        List<DivisionDTO> divisionDTOS = masterClientService.getDivisionMaster(xApiKey);
+        Map<Long, EmployeeDTO> employeeDTOMap = masterCacheService.getLongEmployeeDTOMap();
+
+        // Get divisions managed by this DH
+        Set<Long> divIds = divisionDTOS.stream()
+                .filter(d -> Objects.equals(d.getDivisionHeadId(), empId))
+                .map(DivisionDTO::getDivisionId)
+                .collect(Collectors.toSet());
+
+        if (divIds.isEmpty()) {
+            log.warn("No divisions found for employee with id {}", empId);
+            return List.of();
+        }
+
+        List<Requisition> requisitions = requisitionRepository.findAllByIsActive(1);
+        Set<Long> existReqIds = evaluationRepository.findAllByIsActive(1).stream()
+                .map(Evaluation::getRequisitionId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // Filter requisitions based on employee's division
+        Map<Long, Long> employeeReqCount = requisitions.stream()
+                .filter(r -> r.getInitiatingOfficer() != null
+                        && Arrays.asList("CO", "FA", "PA").contains(r.getStatus())
+                        && r.getIsAttend().equalsIgnoreCase("Y"))
+                .filter(r -> {
+                    EmployeeDTO employee = employeeDTOMap.get(r.getInitiatingOfficer());
+                    return employee != null && divIds.contains(employee.getDivisionId());
+                })
+                .filter(r -> r.getToDate() != null && !r.getToDate().plusMonths(3).isAfter(LocalDate.now()))
+                .filter(r -> !existReqIds.contains(r.getRequisitionId()))
+                .collect(Collectors.groupingBy(Requisition::getInitiatingOfficer, Collectors.counting()));
+
+        // Prepare employee-wise response
+        List<Map<String, Object>> alertList = new ArrayList<>();
+
+        employeeReqCount.forEach((employeeId, count) -> {
+            EmployeeDTO employee = employeeDTOMap.get(employeeId);
+            if (employee != null) {
+                Map<String, Object> alert = new HashMap<>();
+
+                alert.put("employeeId", employeeId);
+                alert.put("employeeName", CommonUtil.buildEmployeeName(employee,true));
+                alert.put("requisitionCount", count.intValue());
+                alertList.add(alert);
+            }
+        });
+
+        return alertList;
     }
 
 

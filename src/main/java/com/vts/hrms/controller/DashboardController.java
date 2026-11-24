@@ -3,6 +3,7 @@ package com.vts.hrms.controller;
 import com.vts.hrms.dto.*;
 import com.vts.hrms.service.DashboardService;
 import com.vts.hrms.service.TrainingService;
+import com.vts.hrms.util.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -94,6 +95,15 @@ public class DashboardController {
         List<CountTypeResponse> list = dashboardService.getRequisitionFiveYrCount();
 
         return ResponseEntity.ok(list);
+    }
+
+    @GetMapping(value = "/dh-evaluation-alert")
+    public ResponseEntity<ApiResponse> getDHEvaluationAlert(@RequestParam String roleName, @RequestParam Long empId) {
+        List<Map<String, Object>> data = dashboardService.getDHEvaluationAlert(roleName, empId);
+
+        return ResponseEntity.ok(
+                new ApiResponse(true, "Evaluation details fetched successfully", data)
+        );
     }
 
 }
