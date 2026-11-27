@@ -34,7 +34,6 @@ import java.util.stream.Collectors;
 public class AuthenticationController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthenticationController.class);
-    private static final Duration ALLOWED_TIMESTAMP_SKEW = Duration.ofMinutes(5);
     private static final DateTimeFormatter DISPLAY_DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy hh:mm a", Locale.ENGLISH).withZone(ZoneId.systemDefault());
 
 
@@ -58,6 +57,13 @@ public class AuthenticationController {
 
     @Autowired
     private LoginRepository loginRepository;
+
+    @Value("${app.allowed-timestamp-skew-minutes:60}")
+    private long allowedTimestampSkewMinutes;
+
+    private Duration getAllowedTimestampSkew() {
+        return Duration.ofMinutes(allowedTimestampSkewMinutes);
+    }
 
 
     @CrossOrigin("*")
@@ -112,7 +118,7 @@ public class AuthenticationController {
 
         final Instant clientTime;
         try {
-            clientTime = Instant.parse(timestamp);
+            clientTime = Instant.parse(timestamp.trim());
         } catch (DateTimeParseException e) {
             log.warn("Authentication rejected for username '{}': request timestamp is not a valid ISO-8601 instant.", username);
             return error(
@@ -124,7 +130,8 @@ public class AuthenticationController {
 
         Instant serverTime = Instant.now();
         Duration clockSkew = Duration.between(clientTime, serverTime);
-        if (clockSkew.abs().compareTo(ALLOWED_TIMESTAMP_SKEW) > 0) {
+        Duration allowedSkew = getAllowedTimestampSkew();
+        if (clockSkew.abs().compareTo(allowedSkew) > 0) {
             String formattedClientTime = DISPLAY_DATE_TIME_FORMAT.format(clientTime);
             String formattedServerTime = DISPLAY_DATE_TIME_FORMAT.format(serverTime);
             log.warn(
@@ -133,7 +140,7 @@ public class AuthenticationController {
                     clientTime,
                     serverTime,
                     clockSkew.abs().getSeconds(),
-                    ALLOWED_TIMESTAMP_SKEW.getSeconds()
+                    allowedSkew.getSeconds()
             );
             ErrorResponse errorResponse = new ErrorResponse(
                     HttpStatus.BAD_REQUEST.value(),
